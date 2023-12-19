@@ -116,8 +116,8 @@ main = do
   bobVar <- newTVarIO 0
   charlieVar <- newTVarIO 0
 
-  payThread aliceVar 1000000 1
-  payThread bobVar   1500000 8
+  payThread aliceVar 1000 2 "Alice"
+  payThread bobVar   1000 5 "Bob"
 
   atomically $ transfer 20 aliceVar charlieVar
            <|> transfer 20 bobVar   charlieVar
@@ -130,9 +130,12 @@ main = do
   putStrLn $ "Final Bob: " ++ show finalBob
   putStrLn $ "Final Charlie: " ++ show finalCharlie
 
-payThread :: TVar Int -> Int -> Int -> IO ()
-payThread var interval amount = void $ forkIO $ forever $ do
+payThread :: TVar Int -> Int -> Int -> String-> IO ()
+payThread var interval amount thd= void $ forkIO $ forever $ do --forever deleted
   threadDelay interval
+  current <- atomically $ readTVar var
+  putStrLn $ "Adding++ " ++ thd ++ "::"++ show (current+amount)
+  
   atomically $ do
     current <- readTVar var
     writeTVar var (current + amount)
