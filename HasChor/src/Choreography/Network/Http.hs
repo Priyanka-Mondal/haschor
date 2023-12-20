@@ -22,7 +22,7 @@ import Control.Monad.Freer
 import Control.Monad.IO.Class
 import Network.Wai.Handler.Warp (run)
 import Text.Read (readEither)
-
+import Control.Applicative (Alternative(..),(<|>))
 -- * Servant API
 
 type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> PostNoContent
@@ -69,6 +69,26 @@ mkRecvChans cfg = foldM f HashMap.empty (locs cfg)
 
 -- * HTTP backend
 -- Network m a  is the program
+{--data ChanWithFlag a = ChanWithFlag (Chan a) (MVar Bool)
+
+newChanWithFlag :: IO (ChanWithFlag a)
+newChanWithFlag = do
+  chan <- newChan
+  flag <- newMVar True
+  return (ChanWithFlag chan flag)
+
+writeChanWithFlag :: ChanWithFlag a -> a -> IO ()
+writeChanWithFlag (ChanWithFlag chan flag) val = do
+  writeChan chan val
+  swapMVar flag False
+
+readChanWithFlag :: ChanWithFlag a -> IO (Maybe a)
+readChanWithFlag (ChanWithFlag chan flag) = do
+  isEmpty <- readMVar flag
+  if isEmpty
+    then return Nothing
+    else Just <$> readChan chan--}
+
 runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings
@@ -89,10 +109,7 @@ runNetworkHttp cfg self prog = do
         Left err -> putStrLn $ "Error : " ++ show err
         Right _  -> return ()
       handler' (Recv l)   = liftIO $ read <$> readChan (chans ! l)
-      handler' (PairRecv l1 l2)  = liftIO $ read <$> do
-       res1 <-  readChan (chans ! l1)
-       res2 <-  readChan (chans ! l2)
-       return res1
+      handler' (PairRecv l1 l2)  = liftIO $ (read <$> readChan (chans ! l1)) <|> (forever $ transfer (chans ! l1))
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
 
     api :: Proxy API 

@@ -3,6 +3,8 @@
 module Control.Monad.Freer where
 
 import Control.Monad ((>=>))
+--import Control.Applicative (Alternative)
+import Control.Applicative (Alternative(..),(<|>))
 
 -- | Freer monads.
 --
@@ -33,6 +35,12 @@ instance Monad (Freer f) where
   (Return a) >>= f = f a
   (Do eff k) >>= f = Do eff (k >=> f)
 
+{--instance Alternative (Freer f) where
+  empty = Return undefined -- You can choose any value for 'undefined' here
+  Return a <|> _ = Return a
+  _ <|> Return b = Return b
+  (Do eff1 k1) <|> (Do eff2 k2) = Do eff1 k1
+   --}
 -- | Lift an effect into the freer monad.
 toFreer :: f a -> Freer f a
 toFreer eff = Do eff Return
@@ -41,3 +49,5 @@ toFreer eff = Do eff Return
 interpFreer :: Monad m => (forall a. f a -> m a) -> Freer f a -> m a
 interpFreer handler (Return a) = return a
 interpFreer handler (Do eff k) = handler eff >>= interpFreer handler . k
+
+

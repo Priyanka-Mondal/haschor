@@ -77,7 +77,7 @@ counter <- newMVar 0
 sleepMs n = threadDelay (n * 1000)
 
 
-
+{--
 nonDuplicatedTest = do
     messages1 <- newChan
     messages2 <- newChan 
@@ -107,24 +107,22 @@ broadcastReader channel name = do
     msg <- readChan channel
     putStrLn (name ++ " read:==> " ++ msg)
     sleepMs 100
+    --}
 
 
 main = do
-    --nonDuplicatedTest
-    --sleepMs 500
   aliceVar <- newTVarIO 0
   bobVar <- newTVarIO 0
   charlieVar <- newTVarIO 0
 
   payThread aliceVar 1000 2 "Alice"
-  payThread bobVar   1000 5 "Bob"
+  payThread bobVar   1000 6 "Bob"
 
-  atomically $ transfer 20 aliceVar charlieVar
-           <|> transfer 20 bobVar   charlieVar
-
-  finalAlice <- atomically $ readTVar aliceVar
-  finalBob <- atomically $ readTVar bobVar
-  finalCharlie <- atomically $ readTVar charlieVar
+  stt <- atomically $ transfer 20 aliceVar charlieVar
+           <|> transfer 20 bobVar charlieVar 
+  finalAlice <- readTVarIO aliceVar
+  finalBob <- readTVarIO bobVar
+  finalCharlie <- readTVarIO charlieVar ---atomically $ readTVar charlieVar
 
   putStrLn $ "Final Alice: " ++ show finalAlice
   putStrLn $ "Final Bob: " ++ show finalBob
@@ -133,7 +131,7 @@ main = do
 payThread :: TVar Int -> Int -> Int -> String-> IO ()
 payThread var interval amount thd= void $ forkIO $ forever $ do --forever deleted
   threadDelay interval
-  current <- atomically $ readTVar var
+  current <- readTVarIO var --atomically $ readTVar var
   putStrLn $ "Adding++ " ++ thd ++ "::"++ show (current+amount)
   
   atomically $ do

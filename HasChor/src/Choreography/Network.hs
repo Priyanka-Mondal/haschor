@@ -7,7 +7,7 @@ module Choreography.Network where
 import Choreography.Location
 import Control.Monad.Freer
 import Control.Monad.IO.Class
-
+import Control.Applicative (Alternative(..),(<|>))
 -- * The Network monad
 
 -- | Effect signature for the `Network` monad.

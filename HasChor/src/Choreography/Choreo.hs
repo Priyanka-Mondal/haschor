@@ -74,9 +74,9 @@ epp c l' = interpFreer handler c
       | otherwise              = return Empty
     handler (Select s1 s2 r a b)
       | toLocTm s1 == toLocTm r = return $ wrap (unwrap a)
-      | toLocTm s1 == l'        =  send (unwrap a) (toLocTm r) >> return Empty
-      | toLocTm s2 == l'        =  send (unwrap b) (toLocTm r) >> return Empty
       | toLocTm r == l'         = wrap <$> pairrecv (toLocTm s1) (toLocTm s2)
+      | toLocTm s1 == l'        = send (unwrap a) (toLocTm r) >> return Empty
+      | toLocTm s2 == l'        = send (unwrap b) (toLocTm r) >> return Empty
       | otherwise               = return Empty
     handler (Cond l a c)
       | toLocTm l == l' = broadcast (unwrap a) >> epp (c (unwrap a)) l'
