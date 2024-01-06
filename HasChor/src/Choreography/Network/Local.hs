@@ -21,7 +21,7 @@ newtype LocalConfig = LocalConfig
   { locToBuf :: HashMap LocTm MsgBuf
   }
 
-newEmptyMsgBuf :: [LocTm] -> IO MsgBuf
+{--newEmptyMsgBuf :: [LocTm] -> IO MsgBuf
 newEmptyMsgBuf = foldM f HashMap.empty
   where
     f hash loc = do
@@ -37,9 +37,9 @@ mkLocalConfig locs = LocalConfig <$> foldM f HashMap.empty locs
 
 locs :: LocalConfig -> [LocTm]
 locs = HashMap.keys . locToBuf
-
-runNetworkLocal :: MonadIO m => LocalConfig -> LocTm -> Network m a -> m a
-runNetworkLocal cfg self prog = interpFreer handler prog
+--}
+{--runNetworkLocal' :: MonadIO m => LocalConfig -> LocTm -> Network m a -> m a
+runNetworkLocal' cfg self prog = interpFreer handler prog
   where
     handler :: MonadIO m => NetworkSig m a -> m a
     handler (Run m)    = m
@@ -48,5 +48,5 @@ runNetworkLocal cfg self prog = interpFreer handler prog
     handler(BCast a)   = mapM_ handler $ fmap (Send a) (locs cfg)
 
 instance Backend LocalConfig where
-  runNetwork = runNetworkLocal
-
+  runNetwork = runNetworkLocal'
+--}

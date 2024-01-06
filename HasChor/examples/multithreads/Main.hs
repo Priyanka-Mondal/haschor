@@ -115,7 +115,7 @@ main = do
   bobVar <- newTVarIO 0
   charlieVar <- newTVarIO 0
 
-  payThread aliceVar 1000 2 "Alice"
+  payThread aliceVar 10 2 "Alice"
   payThread bobVar   1000 6 "Bob"
 
   stt <- atomically $ transfer 20 aliceVar charlieVar

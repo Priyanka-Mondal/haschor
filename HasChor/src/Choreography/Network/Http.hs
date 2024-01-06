@@ -23,6 +23,8 @@ import Control.Monad.IO.Class
 import Network.Wai.Handler.Warp (run)
 import Text.Read (readEither)
 import Control.Applicative (Alternative(..),(<|>))
+import Control.Concurrent.STM
+import System.IO.Unsafe (unsafePerformIO)
 -- * Servant API
 
 type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> PostNoContent
@@ -56,43 +58,36 @@ locs = HashMap.keys . locToUrl
 
 -- * Receiving channels
 
-type RecvChans = HashMap LocTm (Chan String)
+type RecvChans = HashMap LocTm (TChan String)
 
-mkRecvChans :: HttpConfig -> IO RecvChans
+mkRecvChans :: HttpConfig -> STM RecvChans
 mkRecvChans cfg = foldM f HashMap.empty (locs cfg)
   where
-    f :: HashMap LocTm (Chan String) -> LocTm
-      -> IO (HashMap LocTm (Chan String))
+    f :: HashMap LocTm (TChan String) -> LocTm
+      -> STM (HashMap LocTm (TChan String))
     f hm l = do
-      c <- newChan
+      c <- newTChan
       return $ HashMap.insert l c hm
 
--- * HTTP backend
--- Network m a  is the program
-{--data ChanWithFlag a = ChanWithFlag (Chan a) (MVar Bool)
+liftSTM :: MonadIO m => STM a -> m a
+liftSTM = liftIO . atomically
+--liftIO :: forall (m :: Type -> Type) a. MonadIO m => IO a -> m a
+--atomically :: forall a. STM a -> IO a
 
-newChanWithFlag :: IO (ChanWithFlag a)
-newChanWithFlag = do
-  chan <- newChan
-  flag <- newMVar True
-  return (ChanWithFlag chan flag)
+--(read <$> readTChan (chans ! l1)) <|> (read <$> readTChan (chans ! l2))
+stmBoolToBool :: STM Bool -> Bool
+stmBoolToBool stmAction = unsafePerformIO $ atomically stmAction
 
-writeChanWithFlag :: ChanWithFlag a -> a -> IO ()
-writeChanWithFlag (ChanWithFlag chan flag) val = do
-  writeChan chan val
-  swapMVar flag False
-
-readChanWithFlag :: ChanWithFlag a -> IO (Maybe a)
-readChanWithFlag (ChanWithFlag chan flag) = do
-  isEmpty <- readMVar flag
-  if isEmpty
-    then return Nothing
-    else Just <$> readChan chan--}
+checkAndRead :: forall a. Read a => LocTm -> RecvChans -> STM a
+checkAndRead l chans = do
+                        cond <- atomically $ isEmptyTChan (chans ! l)
+                        if cond then read <$> readTChan (chans ! l) else return ()
+--  --check (not (stmBoolToBool (isEmptyTChan (chans ! l))))
 
 runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings
-  chans <- liftIO $ mkRecvChans cfg
+  chans <- liftSTM $ mkRecvChans cfg
   recvT <- liftIO $ forkIO (recvThread cfg chans)
   result <- runNetworkMain mgr chans prog
   liftIO $ threadDelay 1000000 -- wait until all outstanding requests to be completed
@@ -108,9 +103,12 @@ runNetworkHttp cfg self prog = do
        case res of
         Left err -> putStrLn $ "Error : " ++ show err
         Right _  -> return ()
-      handler' (Recv l)   = liftIO $ read <$> readChan (chans ! l)
-      handler' (PairRecv l1 l2)  = liftIO $ (read <$> readChan (chans ! l1)) <|> (forever $ transfer (chans ! l1))
+      handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
+      handler' (PairRecv l1 l2)  = liftSTM $ readTwo l1 l2 chans
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
+      
+    readTwo :: forall a. Read a => LocTm -> LocTm -> RecvChans -> STM a
+    readTwo l1 l2 chans =  checkAndRead l1 chans <|> checkAndRead l2 chans
 
     api :: Proxy API 
     api = Proxy
@@ -123,7 +121,7 @@ runNetworkHttp cfg self prog = do
       where
        handler :: LocTm -> String -> Handler NoContent
        handler rmt msg = do
-        liftIO $ writeChan (chans ! rmt) msg
+        liftSTM $ writeTChan (chans ! rmt) msg
         return NoContent
 
     recvThread :: HttpConfig -> RecvChans -> IO ()
