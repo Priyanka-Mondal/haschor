@@ -119,7 +119,7 @@ main = do
   payThread bobVar   1000 6 "Bob"
 
   stt <- atomically $ transfer 20 aliceVar charlieVar
-           <|> transfer 20 bobVar charlieVar 
+           `orElse` transfer 20 bobVar charlieVar 
   finalAlice <- readTVarIO aliceVar
   finalBob <- readTVarIO bobVar
   finalCharlie <- readTVarIO charlieVar ---atomically $ readTVar charlieVar

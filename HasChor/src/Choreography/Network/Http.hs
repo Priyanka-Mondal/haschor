@@ -74,16 +74,12 @@ liftSTM = liftIO . atomically
 --liftIO :: forall (m :: Type -> Type) a. MonadIO m => IO a -> m a
 --atomically :: forall a. STM a -> IO a
 
---(read <$> readTChan (chans ! l1)) <|> (read <$> readTChan (chans ! l2))
-stmBoolToBool :: STM Bool -> Bool
-stmBoolToBool stmAction = unsafePerformIO $ atomically stmAction
-
-checkAndRead :: forall a. Read a => LocTm -> RecvChans -> STM a
-checkAndRead l chans = do
-                        cond <- atomically $ isEmptyTChan (chans ! l)
-                        if cond then read <$> readTChan (chans ! l) else return ()
---  --check (not (stmBoolToBool (isEmptyTChan (chans ! l))))
-
+checkAndRead :: forall a. Read a => TChan a -> STM a
+checkAndRead l = do
+                  cond <- isEmptyTChan l
+                  check (not cond)
+                  readTChan l
+                        
 runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings
@@ -104,11 +100,11 @@ runNetworkHttp cfg self prog = do
         Left err -> putStrLn $ "Error : " ++ show err
         Right _  -> return ()
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
-      handler' (PairRecv l1 l2)  = liftSTM $ readTwo l1 l2 chans
+      handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
       
-    readTwo :: forall a. Read a => LocTm -> LocTm -> RecvChans -> STM a
-    readTwo l1 l2 chans =  checkAndRead l1 chans <|> checkAndRead l2 chans
+    readEither :: forall a. Read a => TChan a -> TChan a -> STM a
+    readEither l1 l2 =   readTChan l1 `orElse` readTChan l2
 
     api :: Proxy API 
     api = Proxy

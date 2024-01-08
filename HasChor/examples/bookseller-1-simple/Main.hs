@@ -15,20 +15,9 @@ buyer = Proxy
 seller :: Proxy "seller"
 seller = Proxy
 
-flee :: Proxy "flee"
-flee = Proxy
+flea :: Proxy "flea"
+flea = Proxy
 
-{--select :: (Show a, Read a, KnownSymbol s, KnownSymbol r1, KnownSymbol r2)
-     => (Proxy s, a @ s) 
-     -> Proxy r1         
-     -> Proxy r2
-     -> Choreo m (a @ r1, a @ r2)
-     
-select (s, a) r1 r2 = do
-  x <- (s, a) ~> r1
-  y <- (s, a) ~> r2
-  return (x, y)
-  --}
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 bookseller :: Choreo IO (Maybe Day @ "buyer")
@@ -39,78 +28,35 @@ bookseller = do
       getLine
 
   title' <- (buyer, title) ~> seller
-  title'' <- (buyer, title) ~> flee
+  title'' <- (buyer, title) ~> flea
  
   price <- 
     seller `locally` \_ -> do
       putStrLn "Enter the SELLER price::"
       readLn
 
-  fleePrice <- 
-    flee `locally` \_ -> do
-      putStrLn "Enter the FLEE price::"
+  fleaPrice <- 
+    flea `locally` \_ -> do
+      putStrLn "Enter the flea price::"
       readLn
-
-  --price' <- (seller, price) ~> buyer
-  --fleeprice' <- (flee, fleePrice) ~> buyer
   
-  price' <- sel (seller, price) (flee, fleePrice) buyer 
-  --let fleeprice' = price'
-  --fleeprice' <- sel (flee, fleePrice) (seller, price) buyer 
+  price' <- sel (seller, price) (flea, fleaPrice) buyer 
+ 
   buyer `locally` \un -> do
-            putStrLn $ "The (SELLER/FLEE) price is:: " ++ show (un price')
+            putStrLn $ "The (SELLER/flea) price is:: " ++ show (un price')
   
   decision <- buyer `locally` \un -> return $ un price' < budget
 
-  -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
   cond (buyer, decision) \case
     True  -> do
-      deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf (un title')
-      deliveryDate' <- (seller, deliveryDate) ~> buyer
-
-      buyer `locally` \un -> do
-        putStrLn $ "The book will be delivered on " ++ show (un deliveryDate')
-        return $ Just (un deliveryDate')
-
+               buyer `locally` \un -> do
+                                       putStrLn $ "The book will be delivered on " ++ show (deliveryDateOf (un title))
+                                       return $ Just (deliveryDateOf (un title))                             
     False -> do
       buyer `locally` \_ -> do
         putStrLn "The book's price is out of the budget"
         return Nothing
   
-  {--decision <- buyer `locally` \un -> return $ (un price') <= (un fleeprice') 
-  cond (buyer, decision) \case
-    True  -> do
-      decision2 <- buyer `locally` \un -> return $ (un price') <= budget
-      cond (buyer, decision2) \case
-        True -> do 
-          deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf (un title')
-          deliveryDate' <- (seller, deliveryDate) ~> buyer
-
-          buyer `locally` \un -> do
-            putStrLn $ "The book will be delivered by SELLER on " ++ show (un deliveryDate')
-            return $ Just (un deliveryDate')
-        False -> do
-          buyer `locally` \_ -> do
-            putStrLn "The book's price is out of the budget"
-            return Nothing
-    False -> do 
-      decision3 <- buyer `locally` \un -> return $ (un fleeprice') <= budget 
-      cond (buyer, decision3) \case
-        True -> do
-          deliveryDate  <- flee `locally` \un -> return $ deliveryDateOf (un title'')
-          deliveryDate' <- (flee, deliveryDate) ~> buyer
-
-          buyer `locally` \un -> do
-            putStrLn $ "The book will be delivered by FLEE on " ++ show (un deliveryDate')
-            return $ Just (un deliveryDate')
-
-        False -> do
-          buyer `locally` \_ -> do
-            putStrLn "The book's price is out of the budget"
-            return Nothing--}
-       
-
-
 budget :: Int
 budget = 100
 
@@ -121,12 +67,12 @@ priceOf "bookx"            = 20
 priceOf "booky"            = 50
 priceOf "bookz"            = 150
 
-fleepriceOf :: String -> Int
-fleepriceOf "Types and Programming Languages" = 50
-fleepriceOf "Homotopy Type Theory"            = 60
-fleepriceOf "bookx"            = 40
-fleepriceOf "booky"            = 30
-fleepriceOf "bookz"            = 130
+fleapriceOf :: String -> Int
+fleapriceOf "Types and Programming Languages" = 50
+fleapriceOf "Homotopy Type Theory"            = 60
+fleapriceOf "bookx"            = 40
+fleapriceOf "booky"            = 30
+fleapriceOf "bookz"            = 130
 
 deliveryDateOf :: String -> Day
 deliveryDateOf "Types and Programming Languages" = fromGregorian 2022 12 19
@@ -141,10 +87,10 @@ main = do
   case loc of
     "buyer"  -> runChoreography cfg bookseller "buyer"
     "seller" -> runChoreography cfg bookseller "seller"
-    "flee" -> runChoreography cfg bookseller "flee"
+    "flea" -> runChoreography cfg bookseller "flea"
   return ()
   where
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4240))
                        , ("seller", ("localhost", 4341))
-                       , ("flee", ("localhost", 4342))
+                       , ("flea", ("localhost", 4342))
                        ]

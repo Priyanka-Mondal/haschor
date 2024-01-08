@@ -20,7 +20,7 @@ type MsgBuf = HashMap LocTm (Chan String)
 newtype LocalConfig = LocalConfig
   { locToBuf :: HashMap LocTm MsgBuf
   }
-
+-- I commented these functions because they use Chan instead of TChan
 {--newEmptyMsgBuf :: [LocTm] -> IO MsgBuf
 newEmptyMsgBuf = foldM f HashMap.empty
   where
