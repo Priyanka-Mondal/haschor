@@ -45,6 +45,13 @@ data ChoreoSig m a where
        -> a @ l
        -> (a -> Choreo m b)
        -> ChoreoSig m b
+  
+  Cont :: (Show a, Read a, KnownSymbol l)
+       => Proxy l
+       -> a @ l
+       -> Proxy r
+       -> (a -> Choreo m a)
+       -> ChoreoSig m (a @ r)
 
 -- | Monad for writing choreographies.
 type Choreo m = Freer (ChoreoSig m)
@@ -81,7 +88,6 @@ epp c l' = interpFreer handler c
     handler (Cond l a c)
       | toLocTm l == l' = broadcast (unwrap a) >> epp (c (unwrap a)) l'
       | otherwise       = recv (toLocTm l) >>= \x -> epp (c x) l'
-
 -- * Choreo operations
 -- | Perform a local computation at a given location.
 locally :: KnownSymbol l
