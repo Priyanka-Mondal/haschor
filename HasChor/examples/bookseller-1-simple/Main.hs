@@ -41,9 +41,10 @@ bookseller = do
       readLn
   
   price' <- sel (seller, price) (flea, fleaPrice) buyer 
+  price2 <- cont (seller, price) buyer (\_ -> sel (seller, price) (flea, fleaPrice) buyer)
  
   buyer `locally` \un -> do
-            putStrLn $ "The (SELLER/flea) price is:: " ++ show (un price')
+            putStrLn $ "The (SELLER/flea) price is:: " ++ show (un price2)
   
   decision <- buyer `locally` \un -> return $ un price' < budget
 

@@ -102,6 +102,7 @@ runNetworkHttp cfg self prog = do
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
+      handler' (TryRecv l)  = liftSTM $ read <$> readTChan (chans ! l) 
       
     readEither :: forall a. Read a => TChan a -> TChan a -> STM a
     readEither l1 l2 =   readTChan l1 `orElse` readTChan l2

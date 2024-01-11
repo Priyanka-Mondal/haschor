@@ -24,6 +24,9 @@ data NetworkSig m a where
   Recv :: Read a
        => LocTm
        -> NetworkSig m a
+  TryRecv :: Read a
+       => LocTm
+       -> NetworkSig m a
   PairRecv :: Read a 
        => LocTm
        -> LocTm
@@ -56,6 +59,9 @@ pairrecv l1 l2 = toFreer $ PairRecv l1 l2
 -- | Broadcast a message to all participants.
 broadcast :: Show a => a -> Network m ()
 broadcast a = toFreer $ BCast a
+
+tryRead :: Read a => LocTm -> Network m a
+tryRead l = toFreer $ TryRecv l
 
 -- * Message transport backends
 

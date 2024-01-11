@@ -18,9 +18,7 @@ module Choreography (
   sel,
   cond,
   cond',
-  
-  -- * Message transport backends
-  -- ** The HTTP backend
+  cont,
   Host,
   Port,
   HttpConfig,
