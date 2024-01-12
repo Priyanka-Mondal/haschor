@@ -21,6 +21,9 @@ flea = Proxy
 seller2 :: Proxy "seller2"
 seller2 = Proxy
 
+tcb :: Proxy "tcb"
+tcb = Proxy
+
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 bookseller :: Choreo IO () --(Maybe Day @ "buyer")
@@ -50,9 +53,18 @@ bookseller = do
       readLn :: IO Int
   
 
-  price' <- sel (seller, price) (flea, fleaPrice) buyer 
-  price'' <- sel (seller2, price2) (seller, price) buyer
+  --price' <- sel (seller, price) (flea, fleaPrice) buyer 
+  --price'' <- sel (seller2, price2) (seller, price) buyer
   
+  price' <- (seller, price) ~> buyer
+  price'' <- (flea, fleaPrice) ~> buyer
+
+  price' <- buyer `locally` \un -> return (if un price' == price'' then un price' else price'')
+
+    
+    --return (if un price'== un price'' then  un price' else Nothing) 
+  
+  price'' <- sel (buyer, price') (seller2, price2) buyer 
 
   buyer `locally` \un -> do
             putStrLn $ "The (SELLER/flea) price is:: " ++ show (un price' + un price'')
