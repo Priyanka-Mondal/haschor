@@ -18,7 +18,6 @@ module Choreography (
   sel,
   cond,
   cond',
-  cont,
   Host,
   Port,
   HttpConfig,
@@ -36,6 +35,8 @@ import Choreography.Network.Http
 import Choreography.Network.Local
 import Control.Monad.IO.Class
 import Data.Proxy
+
+
 
 -- | Run a choreography with a message transport backend.
 runChoreography :: (Backend config, MonadIO m) => config -> Choreo m a -> LocTm -> m a

@@ -18,9 +18,12 @@ seller = Proxy
 flea :: Proxy "flea"
 flea = Proxy
 
+seller2 :: Proxy "seller2"
+seller2 = Proxy
+
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
-bookseller :: Choreo IO (Maybe Day @ "buyer")
+bookseller :: Choreo IO () --(Maybe Day @ "buyer")
 bookseller = do
   title <-
     buyer `locally` \_ -> do
@@ -29,6 +32,7 @@ bookseller = do
 
   title' <- (buyer, title) ~> seller
   title'' <- (buyer, title) ~> flea
+  title2 <- (buyer, title) ~> seller2
  
   price <- 
     seller `locally` \_ -> do
@@ -38,15 +42,23 @@ bookseller = do
   fleaPrice <- 
     flea `locally` \_ -> do
       putStrLn "Enter the flea price::"
-      readLn
+      readLn :: IO Int
   
+  price2 <- 
+    seller2 `locally` \_ -> do
+      putStrLn "Enter the seller2 price::"
+      readLn :: IO Int
+  
+
   price' <- sel (seller, price) (flea, fleaPrice) buyer 
-  price2 <- cont (seller, price) buyer (\_ -> sel (seller, price) (flea, fleaPrice) buyer)
- 
-  buyer `locally` \un -> do
-            putStrLn $ "The (SELLER/flea) price is:: " ++ show (un price2)
+  price'' <- sel (seller2, price2) (seller, price) buyer
   
-  decision <- buyer `locally` \un -> return $ un price' < budget
+
+  buyer `locally` \un -> do
+            putStrLn $ "The (SELLER/flea) price is:: " ++ show (un price' + un price'')
+
+  
+  decision <- buyer `locally` \un -> return $ (un price'+ un price'') < budget
 
   cond (buyer, decision) \case
     True  -> do
@@ -57,7 +69,30 @@ bookseller = do
       buyer `locally` \_ -> do
         putStrLn "The book's price is out of the budget"
         return Nothing
+
+  bye <-
+    buyer `locally` \_ -> do
+      putStrLn "Enter goodbye text"
+      getLine
+
+  bye' <- (buyer, bye) ~> seller
+  bye'' <- (buyer, bye) ~> flea
+  bye2 <- (buyer, bye) ~> seller2
+ 
+  seller `locally` \un -> do
+            print (un bye')
+
+  seller2 `locally` \un -> do
+            print (un bye2)
+
+  flea `locally` \un -> do
+            print (un bye'')
+
+
+
+  return ()
   
+
 budget :: Int
 budget = 100
 
@@ -89,9 +124,11 @@ main = do
     "buyer"  -> runChoreography cfg bookseller "buyer"
     "seller" -> runChoreography cfg bookseller "seller"
     "flea" -> runChoreography cfg bookseller "flea"
+    "seller2" -> runChoreography cfg bookseller "seller2"
   return ()
   where
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4240))
                        , ("seller", ("localhost", 4341))
+                       , ("seller2", ("localhost", 4343))
                        , ("flea", ("localhost", 4342))
                        ]

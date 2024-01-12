@@ -95,14 +95,19 @@ runNetworkHttp cfg self prog = do
       handler' :: (MonadIO m) => NetworkSig m a -> m a
       handler' (Run m)    = m
       handler' (Send a l) = liftIO $ do
-       res <- runClientM (send self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
+       res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
-        Left err -> putStrLn $ "Error : " ++ show err
+        Left err -> putStrLn $ "ErrorSS : " ++ show err
         Right _  -> return ()
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
+      handler' (MaySend a l)  = liftIO $ do
+       res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
+       case res of
+        Left err -> putStrLn "(Program continued without an Input from me)"
+        Right _  -> return ()
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
-      handler' (TryRecv l)  = liftSTM $ read <$> readTChan (chans ! l) 
+      
       
     readEither :: forall a. Read a => TChan a -> TChan a -> STM a
     readEither l1 l2 =   readTChan l1 `orElse` readTChan l2
@@ -110,8 +115,8 @@ runNetworkHttp cfg self prog = do
     api :: Proxy API 
     api = Proxy
 
-    send :: LocTm -> String -> ClientM NoContent
-    send = client api
+    send' :: LocTm -> String -> ClientM NoContent
+    send' = client api
 
     server :: RecvChans -> Server API
     server chans = handler
@@ -129,3 +134,36 @@ runNetworkHttp cfg self prog = do
 
 instance Backend HttpConfig where
   runNetwork = runNetworkHttp
+
+{--
+The source file extension must be ".hs"
+Can not use STDIN handle while debugging.
+Creating tasks.json.
+Shortcut keys
+F5 : start / continue debugging
+F6 : show command menu
+Shift + F6 : stop watch
+F7 : clean & build
+F8 : start test
+F9 : put a breakpoint on the current line
+Shift + F9 : put a breakpoint on the current column
+F10 : step next
+F11 : step into
+Install
+Stack
+Install haskell-dap, ghci-dap, haskell-debug-adapter at once.
+
+$ stack update
+$
+$ stack install haskell-dap ghci-dap haskell-debug-adapter
+$
+$ ghci-dap --version
+[DAP][INFO] start ghci-dap-0.0.XX.0.
+The Glorious Glasgow Haskell Compilation System, version X.X.X
+$
+$ haskell-debug-adapter --version
+VERSION: haskell-debug-adapter-0.0.XX.0
+$
+
+
+--}

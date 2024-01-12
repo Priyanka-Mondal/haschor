@@ -20,11 +20,11 @@ data NetworkSig m a where
        => a
        -> LocTm
        -> NetworkSig m ()
-  -- | Receiving.
+  MaySend :: Show a
+       => a
+       -> LocTm
+       -> NetworkSig m ()
   Recv :: Read a
-       => LocTm
-       -> NetworkSig m a
-  TryRecv :: Read a
        => LocTm
        -> NetworkSig m a
   PairRecv :: Read a 
@@ -49,6 +49,9 @@ run m = toFreer $ Run m
 send :: Show a => a -> LocTm -> Network m ()
 send a l = toFreer $ Send a l
 
+maysend :: Show a => a -> LocTm -> Network m ()
+maysend a l = toFreer $ MaySend a l
+
 -- | Receive a message from a sender.
 recv :: Read a => LocTm -> Network m a
 recv l = toFreer $ Recv l
@@ -60,8 +63,8 @@ pairrecv l1 l2 = toFreer $ PairRecv l1 l2
 broadcast :: Show a => a -> Network m ()
 broadcast a = toFreer $ BCast a
 
-tryRead :: Read a => LocTm -> Network m a
-tryRead l = toFreer $ TryRecv l
+--tryRead :: Read a => LocTm -> Network m a
+--tryRead l = toFreer $ TryRecv l
 
 -- * Message transport backends
 
@@ -70,3 +73,9 @@ tryRead l = toFreer $ TryRecv l
 -- of `Backend` and provides a `runNetwork` function.
 class Backend c where
   runNetwork :: MonadIO m => c -> LocTm -> Network m a -> m a
+
+{--
+TryRecv :: Read a
+       => LocTm
+       -> NetworkSig m a
+--}

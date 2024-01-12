@@ -47,13 +47,6 @@ data ChoreoSig m a where
        -> (a -> Choreo m b)
        -> ChoreoSig m b
   
-  
-  Cont :: (Show a, Read a, KnownSymbol l, KnownSymbol r)
-       => Proxy l
-       -> a @ l
-       -> Proxy r
-       -> (a -> Choreo m (a @ r))
-       -> ChoreoSig m (a @ r)
 
 -- | Monad for writing choreographies.
 type Choreo m = Freer (ChoreoSig m)
@@ -84,18 +77,13 @@ epp c l' = interpFreer handler c
     handler (Select s1 s2 r a b)
       | toLocTm s1 == toLocTm r = return $ wrap (unwrap a)
       | toLocTm r == l'         = wrap <$> pairrecv (toLocTm s1) (toLocTm s2)
-      | toLocTm s1 == l'        = send (unwrap a) (toLocTm r) >> return Empty
-      | toLocTm s2 == l'        = send (unwrap b) (toLocTm r) >> return Empty
+      | toLocTm s1 == l'        = maysend (unwrap a) (toLocTm r) >> return Empty
+      | toLocTm s2 == l'        = maysend (unwrap b) (toLocTm r) >> return Empty
       | otherwise               = return Empty
     handler (Cond l a c)
       | toLocTm l == l' = broadcast (unwrap a) >> epp (c (unwrap a)) l'
       | otherwise       = recv (toLocTm l) >>= \x -> epp (c x) l'
-    handler (Cont s a r c)
-      | toLocTm s == toLocTm r = return $ wrap (unwrap a)
-      | toLocTm s == l' = send (unwrap a) (toLocTm r) >> epp (c (unwrap a)) l'
-      | toLocTm r == l' = tryRead (toLocTm r) >>= \x -> epp (c x) l'
-      | otherwise               = return Empty
-
+   
 --recv :: Read a => LocTm -> Network m a
 --recv l = toFreer $ Recv l
 -- * Choreo operations
@@ -132,13 +120,6 @@ cond :: (Show a, Read a, KnownSymbol l)
      -> Choreo m b
 cond (l, a) c = toFreer (Cond l a c)
 
-cont :: (Show a, Read a, KnownSymbol l, KnownSymbol l')
-     => (Proxy l, a @ l) 
-     -> Proxy l' 
-     -> (a -> Choreo m (a @ l')) 
-     -> Choreo m (a @ l')
-cont (l, a) l' c = toFreer (Cont l a l' c)
-
 
 -- | A variant of `~>` that sends the result of a local computation.
 (~~>) :: (Show a, Read a, KnownSymbol l, KnownSymbol l')
@@ -162,3 +143,32 @@ cond' :: (Show a, Read a, KnownSymbol l)
 cond' (l, m) c = do
   x <- l `locally` m
   cond (l, x) c
+
+
+{--
+ handler (Cont s a r c)
+      | toLocTm s == toLocTm r = return $ wrap (unwrap a)
+      | toLocTm s == l' = send (unwrap a) (toLocTm r) >> epp (c (unwrap a)) l'
+      | toLocTm r == l' = tryRead (toLocTm r) >>= \x -> epp (c x) l'
+      | otherwise               = return Empty
+
+--}
+
+{--
+ Cont :: (Show a, Read a, KnownSymbol l, KnownSymbol r)
+       => Proxy l
+       -> a @ l
+       -> Proxy r
+       -> (a -> Choreo m (a @ r))
+       -> ChoreoSig m (a @ r)
+--}
+
+{--
+cont :: (Show a, Read a, KnownSymbol l, KnownSymbol l')
+     => (Proxy l, a @ l) 
+     -> Proxy l' 
+     -> (a -> Choreo m (a @ l')) 
+     -> Choreo m (a @ l')
+cont (l, a) l' c = toFreer (Cont l a l' c)
+
+--}
