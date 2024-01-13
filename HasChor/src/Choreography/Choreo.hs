@@ -47,7 +47,7 @@ data ChoreoSig m a where
        -> Proxy r
        -> a @ s1
        -> a @ s2
-       -> a
+       -> String
        -> ChoreoSig m (a @ r)
 
   Cond :: (Show a, Read a, KnownSymbol l)
@@ -129,7 +129,7 @@ com :: (Show a, Read a, Eq a, KnownSymbol s1, KnownSymbol s2, KnownSymbol r)
      => (Proxy s1, a @ s1)  
      -> (Proxy s2, a @ s2)  
      -> Proxy r
-     -> a
+     -> String
      -> Choreo m (a @ r)
 com (s1, p1) (s2, p2) r def = toFreer (Compare s1 s2 r p1 p2 def)
 

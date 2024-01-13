@@ -21,7 +21,7 @@ import Control.Monad
 import Control.Monad.Freer
 import Control.Monad.IO.Class
 import Network.Wai.Handler.Warp (run)
-import Text.Read (readEither)
+import Text.Read (readEither, Lexeme (String))
 import Control.Applicative (Alternative(..),(<|>))
 import Control.Concurrent.STM
 import System.Timeout
@@ -29,6 +29,7 @@ import System.IO.Unsafe (unsafePerformIO)
 
 import Debug.Trace
 import Data.Bits (Bits(xor))
+import GHC.Base (failIO)
 -- * Servant API
 
 type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> PostNoContent
@@ -112,11 +113,10 @@ runNetworkHttp cfg self prog = do
         Right _  -> return ()
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
-      handler' (RecvCompare l1 l2 def)  = liftSTM $ read <$> readTChan (chans ! l1) --liftIO $ do 
-       -- res <- readCompare (chans ! l1) (chans ! l2) 
-       -- case res of 
-       --   Just x -> return $ read x
-        --  Nothing -> return ()
+      handler' (RecvCompare l1 l2 def)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2) def
+        --case res of 
+        --  Left x -> atomically $ read <$> x
+        --  Right y -> atomically $ read <$> y
       handler' (MaySend a l)  = liftIO $ do
        res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
@@ -128,17 +128,34 @@ runNetworkHttp cfg self prog = do
     readEither :: forall a. Read a => TChan a -> TChan a -> STM a
     readEither l1 l2 =   readTChan l1 `orElse` readTChan l2
     --def <-  newTVar (42 ::Int)
-    readCompare :: forall a. (Read a, Eq a) => TChan a -> TChan a -> STM a
-    readCompare l1 l2 = do
-          def <- newTVar "fail"
+    readCompare :: forall a. (Read a, Eq a) => TChan a -> TChan a -> String -> STM a
+    readCompare l1 l2 fail = do
+          newchan <- newTChan
+          writeTChan newchan (read "fail")
           cond1 <- isEmptyTChan l1
           if not cond1
            then do 
             cond2 <- isEmptyTChan l2
             if not cond2
-              then readTChan l2
-              else readTVar def
-           else readTVar def
+              then do 
+                one <- peekTChan l1
+                two <- readTChan l2
+                if one == two then readTChan l1 else readTChan newchan
+              else readTChan newchan
+           else readTChan newchan
+
+   {-- readCompare :: forall a b. (Read a, Eq a, Read b, Eq b) => TChan a -> TChan a -> b -> IO (Either (STM a) b)
+    readCompare l1 l2 failMessage = do
+     cond1 <- atomically $ isEmptyTChan l1
+     newchan <- newTChan
+     if not cond1
+        then do
+            cond2 <- atomically $ isEmptyTChan l2
+            if not cond2
+                then return (Left (readTChan l2))
+                else return (Right failMessage)
+        else return (Right failMessage)
+     --}
    
 
 

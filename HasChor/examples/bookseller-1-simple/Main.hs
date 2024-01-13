@@ -36,7 +36,12 @@ bookseller = do
   title' <- (buyer, title) ~> seller
   title'' <- (buyer, title) ~> flea
   title2 <- (buyer, title) ~> seller2
- 
+  
+  bye <-
+    buyer `locally` \_ -> do
+      putStrLn "Enter goodbye text for The END"
+      getLine
+
   price <- 
     seller `locally` \_ -> do
       putStrLn "Enter the SELLER price::"
@@ -53,7 +58,8 @@ bookseller = do
       readLn :: IO Int
   
   
-  price' <- com (seller, price) (seller2, price2) buyer defInt
+  price' <- com (seller, price) (seller2, price2) buyer defStr
+ 
   price' <- sel (buyer, price') (flea, fleaPrice) buyer
 
   --price' <- buyer `locally` \un -> return (if un price' == un price'' then un price' else un price'')
@@ -82,10 +88,6 @@ bookseller = do
         putStrLn "The book's price is out of the budget"
         return Nothing
 
-  bye <-
-    buyer `locally` \_ -> do
-      putStrLn "Enter goodbye text"
-      getLine
 
   bye' <- (buyer, bye) ~> seller
   bye'' <- (buyer, bye) ~> flea
@@ -112,7 +114,7 @@ defInt :: Int
 defInt = 0
 
 defStr :: String
-defStr = "0"
+defStr = "fail"
   
 
 priceOf :: String -> Int

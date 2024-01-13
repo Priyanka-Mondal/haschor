@@ -34,3 +34,29 @@ executeBasedOnChannel tchan1 tchan2 = do
 
     -- Execute the chosen expression (replace this with your own logic)
     putStrLn $ "Executing: " ++ expressionToExecute
+
+{--
+
+ readCompare :: forall a. (Read a, Eq a, DefaultType a) => TChan a -> TChan a -> a -> STM (Maybe a)
+    readCompare l1 l2 def = do
+     --let defaultValue = getDefault 90
+     result <- checkLoop 0
+     if result
+        then readTChan l1
+        else return defaultValue
+     where
+      checkLoop :: Int -> STM Bool
+      checkLoop attempts
+        | attempts >= 100 = return False  -- Stop after 100 attempts
+        | otherwise = do
+            cond1 <- isEmptyTChan l1
+            if not cond1
+                then return True
+                else do
+                    cond2 <- isEmptyTChan l2
+                    if not cond2
+                        then return True
+                        else do
+                            retry
+                            checkLoop (attempts + 1)
+--}
