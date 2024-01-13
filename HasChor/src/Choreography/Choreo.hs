@@ -41,6 +41,15 @@ data ChoreoSig m a where
        -> a @ s2
        -> ChoreoSig m (a @ r)
 
+  Compare :: (Show a, Read a, Eq a, KnownSymbol s1, KnownSymbol s2, KnownSymbol r)
+       => Proxy s1
+       -> Proxy s2
+       -> Proxy r
+       -> a @ s1
+       -> a @ s2
+       -> a
+       -> ChoreoSig m (a @ r)
+
   Cond :: (Show a, Read a, KnownSymbol l)
        => Proxy l
        -> a @ l
@@ -80,6 +89,12 @@ epp c l' = interpFreer handler c
       | toLocTm s1 == l'        = maysend (unwrap a) (toLocTm r) >> return Empty
       | toLocTm s2 == l'        = maysend (unwrap b) (toLocTm r) >> return Empty
       | otherwise               = return Empty
+    handler (Compare s1 s2 r a b def)
+      | toLocTm s1 == toLocTm r = return $ wrap (unwrap a)
+      | toLocTm r == l'         = wrap <$> recvCompare (toLocTm s1) (toLocTm s2) def
+      | toLocTm s1 == l'        = maysend (unwrap a) (toLocTm r) >> return Empty
+      | toLocTm s2 == l'        = maysend (unwrap b) (toLocTm r) >> return Empty
+      | otherwise               = return Empty
     handler (Cond l a c)
       | toLocTm l == l' = broadcast (unwrap a) >> epp (c (unwrap a)) l'
       | otherwise       = recv (toLocTm l) >>= \x -> epp (c x) l'
@@ -103,13 +118,21 @@ locally l m = toFreer (Local l m)
      -> Choreo m (a @ l')
 (~>) (l, a) l' = toFreer (Comm l a l')
 
-
 sel :: (Show a, Read a, KnownSymbol s1, KnownSymbol s2, KnownSymbol r)
      => (Proxy s1, a @ s1)  
      -> (Proxy s2, a @ s2)  
      -> Proxy r
      -> Choreo m (a @ r)
 sel (s1, p1) (s2, p2) r = toFreer (Select s1 s2 r p1 p2)
+
+com :: (Show a, Read a, Eq a, KnownSymbol s1, KnownSymbol s2, KnownSymbol r)
+     => (Proxy s1, a @ s1)  
+     -> (Proxy s2, a @ s2)  
+     -> Proxy r
+     -> a
+     -> Choreo m (a @ r)
+com (s1, p1) (s2, p2) r def = toFreer (Compare s1 s2 r p1 p2 def)
+
 
 -- | Conditionally execute choreographies based on a located value.
 cond :: (Show a, Read a, KnownSymbol l)

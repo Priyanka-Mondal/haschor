@@ -24,7 +24,11 @@ import Network.Wai.Handler.Warp (run)
 import Text.Read (readEither)
 import Control.Applicative (Alternative(..),(<|>))
 import Control.Concurrent.STM
+import System.Timeout
 import System.IO.Unsafe (unsafePerformIO)
+
+import Debug.Trace
+import Data.Bits (Bits(xor))
 -- * Servant API
 
 type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> PostNoContent
@@ -73,13 +77,20 @@ liftSTM :: MonadIO m => STM a -> m a
 liftSTM = liftIO . atomically
 --liftIO :: forall (m :: Type -> Type) a. MonadIO m => IO a -> m a
 --atomically :: forall a. STM a -> IO a
-
+-- if readTChan l1 == readTChan l2 then readTChan l2 else readTChan l2
 checkAndRead :: forall a. Read a => TChan a -> STM a
 checkAndRead l = do
                   cond <- isEmptyTChan l
                   check (not cond)
                   readTChan l
-                        
+
+class DefaultType a where
+    getDefault :: a -> a
+
+instance DefaultType (TVar a) where
+    getDefault x = x
+
+
 runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings
@@ -101,6 +112,11 @@ runNetworkHttp cfg self prog = do
         Right _  -> return ()
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
+      handler' (RecvCompare l1 l2 def)  = liftSTM $ read <$> readTChan (chans ! l1) --liftIO $ do 
+       -- res <- readCompare (chans ! l1) (chans ! l2) 
+       -- case res of 
+       --   Just x -> return $ read x
+        --  Nothing -> return ()
       handler' (MaySend a l)  = liftIO $ do
        res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
@@ -111,6 +127,20 @@ runNetworkHttp cfg self prog = do
       
     readEither :: forall a. Read a => TChan a -> TChan a -> STM a
     readEither l1 l2 =   readTChan l1 `orElse` readTChan l2
+    --def <-  newTVar (42 ::Int)
+    readCompare :: forall a. (Read a, Eq a) => TChan a -> TChan a -> STM a
+    readCompare l1 l2 = do
+          def <- newTVar "fail"
+          cond1 <- isEmptyTChan l1
+          if not cond1
+           then do 
+            cond2 <- isEmptyTChan l2
+            if not cond2
+              then readTChan l2
+              else readTVar def
+           else readTVar def
+   
+
 
     api :: Proxy API 
     api = Proxy

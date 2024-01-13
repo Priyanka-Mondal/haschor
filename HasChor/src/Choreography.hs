@@ -16,6 +16,7 @@ module Choreography (
   (~>),
   (~~>),
   sel,
+  com,
   cond,
   cond',
   Host,

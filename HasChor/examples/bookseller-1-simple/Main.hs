@@ -32,7 +32,7 @@ bookseller = do
     buyer `locally` \_ -> do
       putStrLn "Enter the title of the book to BUY::"
       getLine
-
+  
   title' <- (buyer, title) ~> seller
   title'' <- (buyer, title) ~> flea
   title2 <- (buyer, title) ~> seller2
@@ -52,25 +52,25 @@ bookseller = do
       putStrLn "Enter the seller2 price::"
       readLn :: IO Int
   
-
-  --price' <- sel (seller, price) (flea, fleaPrice) buyer 
-  --price'' <- sel (seller2, price2) (seller, price) buyer
   
-  price' <- (seller, price) ~> buyer
-  price'' <- (flea, fleaPrice) ~> buyer
+  price' <- com (seller, price) (seller2, price2) buyer defInt
+  price' <- sel (buyer, price') (flea, fleaPrice) buyer
 
-  price' <- buyer `locally` \un -> return (if un price' == price'' then un price' else price'')
+  --price' <- buyer `locally` \un -> return (if un price' == un price'' then un price' else un price'')
 
     
     --return (if un price'== un price'' then  un price' else Nothing) 
   
-  price'' <- sel (buyer, price') (seller2, price2) buyer 
+ -- price'' <- sel (buyer, (buyer `locally` \un -> return (if un price' == un price'' then un price' else un price''))) (seller2, price2) buyer 
+-- here instead of the whole code do something with compare
+-- similarly compare should be able to take output of sel inside of it
+
 
   buyer `locally` \un -> do
-            putStrLn $ "The (SELLER/flea) price is:: " ++ show (un price' + un price'')
+            putStrLn $ "The (SELLER/flea) price is:: " ++ show (un price')
 
   
-  decision <- buyer `locally` \un -> return $ (un price'+ un price'') < budget
+  decision <- buyer `locally` \un -> return $ un price' < budget
 
   cond (buyer, decision) \case
     True  -> do
@@ -107,6 +107,13 @@ bookseller = do
 
 budget :: Int
 budget = 100
+
+defInt :: Int
+defInt = 0
+
+defStr :: String
+defStr = "0"
+  
 
 priceOf :: String -> Int
 priceOf "Types and Programming Languages" = 80

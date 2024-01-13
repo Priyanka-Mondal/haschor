@@ -15,7 +15,6 @@ data NetworkSig m a where
   -- | Local computation.
   Run :: m a
       -> NetworkSig m a
-  -- | Sending.
   Send :: Show a
        => a
        -> LocTm
@@ -31,7 +30,11 @@ data NetworkSig m a where
        => LocTm
        -> LocTm
        -> NetworkSig m a
-  -- | Broadcasting.
+  RecvCompare :: (Read a, Eq a)
+       => LocTm
+       -> LocTm
+       -> a
+       -> NetworkSig m a
   BCast :: Show a
         => a
         -> NetworkSig m ()
@@ -58,6 +61,9 @@ recv l = toFreer $ Recv l
 
 pairrecv :: Read a => LocTm -> LocTm -> Network m a
 pairrecv l1 l2 = toFreer $ PairRecv l1 l2
+
+recvCompare :: (Read a, Eq a) => LocTm -> LocTm -> a -> Network m a
+recvCompare l1 l2 def = toFreer $ RecvCompare l1 l2 def
 
 -- | Broadcast a message to all participants.
 broadcast :: Show a => a -> Network m ()
