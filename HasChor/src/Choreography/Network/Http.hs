@@ -113,10 +113,7 @@ runNetworkHttp cfg self prog = do
         Right _  -> return ()
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
-      handler' (RecvCompare l1 l2 def)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2) def
-        --case res of 
-        --  Left x -> atomically $ read <$> x
-        --  Right y -> atomically $ read <$> y
+      handler' (RecvCompare l1 l2)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2)
       handler' (MaySend a l)  = liftIO $ do
        res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
@@ -125,13 +122,36 @@ runNetworkHttp cfg self prog = do
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
       
       
+    {--
     readEither :: forall a. Read a => TChan a -> TChan a -> STM a
     readEither l1 l2 =   readTChan l1 `orElse` readTChan l2
-    --def <-  newTVar (42 ::Int)
-    readCompare :: forall a. (Read a, Eq a) => TChan a -> TChan a -> String -> STM a
-    readCompare l1 l2 fail = do
+    --}
+   
+    --readEither :: forall a.(Read a, Eq a) => TChan a -> TChan a -> STM a
+    readEither l1 l2 =  do 
           newchan <- newTChan
-          writeTChan newchan (read "fail")
+          writeTChan newchan "-1"
+          cond1 <- isEmptyTChan l1
+          if cond1
+            then do
+              cond2 <- isEmptyTChan l2
+              if cond2 
+                then readTChan newchan
+                else readTChan l2
+            else do
+              one <- peekTChan l1
+              if one == "-1"
+                then do 
+                  cond2 <- isEmptyTChan l2
+                  if cond2 
+                    then readTChan l1 ----- <<
+                    else readTChan l2
+                else readTChan l1   ----- <<
+
+    --readCompare :: forall a. (Read a, Eq a) => TChan a -> TChan a -> STM a
+    readCompare l1 l2 = do
+          newchan <- newTChan
+          writeTChan newchan "-1"
           cond1 <- isEmptyTChan l1
           if not cond1
            then do 

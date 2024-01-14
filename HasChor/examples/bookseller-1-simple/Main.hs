@@ -8,6 +8,7 @@ import Choreography
 import Data.Proxy
 import Data.Time
 import System.Environment
+import Text.Read (Lexeme(String))
 
 buyer :: Proxy "buyer"
 buyer = Proxy
@@ -56,24 +57,17 @@ bookseller = do
     seller2 `locally` \_ -> do
       putStrLn "Enter the seller2 price::"
       readLn :: IO Int
-  
-  
-  price' <- com (seller, price) (seller2, price2) buyer defStr
- 
-  price' <- sel (buyer, price') (flea, fleaPrice) buyer
 
-  --price' <- buyer `locally` \un -> return (if un price' == un price'' then un price' else un price'')
-
-    
-    --return (if un price'== un price'' then  un price' else Nothing) 
+  hi <- 
+    tcb `locally` \_ -> do
+      putStrLn "Say Hi"
+      readLn :: IO Int
   
- -- price'' <- sel (buyer, (buyer `locally` \un -> return (if un price' == un price'' then un price' else un price''))) (seller2, price2) buyer 
--- here instead of the whole code do something with compare
--- similarly compare should be able to take output of sel inside of it
-
+  price'' <- com (seller, price) (seller2, price2) tcb
+  price' <- sel (flea, fleaPrice) (tcb, price'')  buyer
 
   buyer `locally` \un -> do
-            putStrLn $ "The (SELLER/flea) price is:: " ++ show (un price')
+            putStrLn $ "The price is:: " ++ show (un price')
 
   
   decision <- buyer `locally` \un -> return $ un price' < budget
@@ -92,6 +86,7 @@ bookseller = do
   bye' <- (buyer, bye) ~> seller
   bye'' <- (buyer, bye) ~> flea
   bye2 <- (buyer, bye) ~> seller2
+  byetcb <- (buyer, bye) ~> tcb
  
   seller `locally` \un -> do
             print (un bye')
@@ -102,7 +97,9 @@ bookseller = do
   flea `locally` \un -> do
             print (un bye'')
 
-
+  
+  tcb `locally` \un -> do
+            print (un byetcb)
 
   return ()
   
@@ -146,10 +143,12 @@ main = do
     "seller" -> runChoreography cfg bookseller "seller"
     "flea" -> runChoreography cfg bookseller "flea"
     "seller2" -> runChoreography cfg bookseller "seller2"
+    "tcb" -> runChoreography cfg bookseller "tcb"
   return ()
   where
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4240))
                        , ("seller", ("localhost", 4341))
                        , ("seller2", ("localhost", 4343))
                        , ("flea", ("localhost", 4342))
+                       , ("tcb", ("localhost", 4344))
                        ]

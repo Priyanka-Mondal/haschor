@@ -7,33 +7,38 @@ module Main where
 import Control.Concurrent
 import Control.Concurrent.STM
 
+readCompare :: forall a. (Read a, Eq a) => TChan a -> TChan a -> a -> STM a
+readCompare l1 l2 defaultValue = do
+    newchan <- newTChan
+    writeTChan newchan defaultValue
+    writeTChan l1 1
+    writeTChan l2 1
+    cond1 <- isEmptyTChan l1
+    if not cond1
+        then do
+            cond2 <- isEmptyTChan l2
+            if not cond2
+                then do
+                    one <- peekTChan l1
+                    two <- readTChan l2
+                    if one == two then readTChan l1 else readTChan newchan
+                else readTChan newchan
+        else readTChan newchan
+
 main :: IO ()
 main = do
-    -- Create two TChans for the two expressions
-    tchan1 <- newTChanIO
-    tchan2 <- newTChanIO
+    let defaultValue = 0 :: Int  -- Change the type and value as needed
 
-    -- Spawn a thread to read from the TChans and execute the expressions
-    _ <- forkIO $ executeBasedOnChannel tchan1 tchan2
+    -- Create TChans within STM
+    (l1, l2) <- atomically $ do
+        chan1 <- newTChan
+        chan2 <- newTChan
+        return (chan1, chan2)
 
-    -- Write values to the TChans (you can replace these with your own expressions)
-    atomically $ writeTChan tchan1 "Hello"
-    atomically $ writeTChan tchan2 "World"
+    result <- atomically $ readCompare l1 l2 defaultValue
+    print result
 
-    -- Wait for a while to allow the thread to execute
-    threadDelay 2000000
 
-executeBasedOnChannel :: TChan String -> TChan String -> IO ()
-executeBasedOnChannel tchan1 tchan2 = do
-    -- Read from TChans using STM
-    result1 <- atomically $ readTChan tchan1
-    result2 <- atomically $ readTChan tchan2
-
-    -- Choose which expression to execute based on the values read
-    let expressionToExecute = if length result1 > length result2 then result1 else result2
-
-    -- Execute the chosen expression (replace this with your own logic)
-    putStrLn $ "Executing: " ++ expressionToExecute
 
 {--
 

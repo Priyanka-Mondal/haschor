@@ -33,7 +33,6 @@ data NetworkSig m a where
   RecvCompare :: (Read a, Eq a )
        => LocTm
        -> LocTm
-       -> String
        -> NetworkSig m a
   BCast :: Show a
         => a
@@ -62,8 +61,8 @@ recv l = toFreer $ Recv l
 pairrecv :: Read a => LocTm -> LocTm -> Network m a
 pairrecv l1 l2 = toFreer $ PairRecv l1 l2
 
-recvCompare :: (Read a, Eq a) => LocTm -> LocTm -> String -> Network m a
-recvCompare l1 l2 def = toFreer $ RecvCompare l1 l2 def
+recvCompare :: (Read a, Eq a) => LocTm -> LocTm -> Network m a
+recvCompare l1 l2 = toFreer $ RecvCompare l1 l2
 
 -- | Broadcast a message to all participants.
 broadcast :: Show a => a -> Network m ()
