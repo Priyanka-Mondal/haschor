@@ -79,11 +79,14 @@ liftSTM = liftIO . atomically
 --liftIO :: forall (m :: Type -> Type) a. MonadIO m => IO a -> m a
 --atomically :: forall a. STM a -> IO a
 -- if readTChan l1 == readTChan l2 then readTChan l2 else readTChan l2
-checkAndRead :: forall a. Read a => TChan a -> STM a
+--checkAndRead :: forall a. Read a => TChan a -> STM a
 checkAndRead l = do
+                  newchan <- newTChan
+                  writeTChan newchan "-1"
                   cond <- isEmptyTChan l
-                  check (not cond)
-                  readTChan l
+                  if not cond
+                    then readTChan l
+                  else readTChan newchan
 
 class DefaultType a where
     getDefault :: a -> a
@@ -114,6 +117,7 @@ runNetworkHttp cfg self prog = do
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
       handler' (RecvCompare l1 l2)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2)
+      handler' (MayRecv l)   = liftSTM $ read <$> checkAndRead (chans ! l)
       handler' (MaySend a l)  = liftIO $ do
        res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
@@ -121,12 +125,8 @@ runNetworkHttp cfg self prog = do
         Right _  -> return ()
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
       
-      
-    {--
-    readEither :: forall a. Read a => TChan a -> TChan a -> STM a
-    readEither l1 l2 =   readTChan l1 `orElse` readTChan l2
-    --}
-   
+    
+
     --readEither :: forall a.(Read a, Eq a) => TChan a -> TChan a -> STM a
     readEither l1 l2 =  do 
           newchan <- newTChan
@@ -147,7 +147,7 @@ runNetworkHttp cfg self prog = do
                     then readTChan l1 ----- <<
                     else readTChan l2
                 else readTChan l1   ----- <<
-
+  
     --readCompare :: forall a. (Read a, Eq a) => TChan a -> TChan a -> STM a
     readCompare l1 l2 = do
           newchan <- newTChan
@@ -176,7 +176,10 @@ runNetworkHttp cfg self prog = do
                 else return (Right failMessage)
         else return (Right failMessage)
      --}
-   
+   {--
+    readEither :: forall a. Read a => TChan a -> TChan a -> STM a
+    readEither l1 l2 =   readTChan l1 `orElse` readTChan l2
+    --}
 
 
     api :: Proxy API 
@@ -233,4 +236,20 @@ VERSION: haskell-debug-adapter-0.0.XX.0
 $
 
 
+--}
+
+{--
+
+
+    --checkBoth :: forall a. (Read a, Eq a) => String -> String -> STM a
+    checkBoth a1 a2 = do
+     newchan1 <- newTChan
+     writeTChan newchan1 a1
+     newchan2 <- newTChan
+     writeTChan newchan2 a2
+     one <- peekTChan newchan1
+     two <- peekTChan newchan2
+     if a1 ==  read "-1"
+        then readTChan newchan2
+        else readTChan newchan1
 --}

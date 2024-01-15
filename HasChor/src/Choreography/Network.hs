@@ -26,9 +26,16 @@ data NetworkSig m a where
   Recv :: Read a
        => LocTm
        -> NetworkSig m a
+  MayRecv :: Read a
+       => LocTm
+       -> NetworkSig m a
   PairRecv :: Read a 
        => LocTm
        -> LocTm
+       -> NetworkSig m a
+  SameSel :: Read a 
+       => a
+       -> a
        -> NetworkSig m a
   RecvCompare :: (Read a, Eq a )
        => LocTm
@@ -58,8 +65,14 @@ maysend a l = toFreer $ MaySend a l
 recv :: Read a => LocTm -> Network m a
 recv l = toFreer $ Recv l
 
+mayrecv :: Read a => LocTm -> Network m a
+mayrecv l = toFreer $ MayRecv l
+
 pairrecv :: Read a => LocTm -> LocTm -> Network m a
 pairrecv l1 l2 = toFreer $ PairRecv l1 l2
+
+sameSel :: Read a => a -> a -> Network m a
+sameSel l1 l2 = toFreer $ SameSel l1 l2
 
 recvCompare :: (Read a, Eq a) => LocTm -> LocTm -> Network m a
 recvCompare l1 l2 = toFreer $ RecvCompare l1 l2

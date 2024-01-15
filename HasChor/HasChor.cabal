@@ -85,6 +85,16 @@ executable bookseller-0-network
         , time    >= 1.11 && < 1.13
         , stm     >=2.5.0.0
 
+executable balance
+    hs-source-dirs:   examples/available-largest-balance
+    main-is:          Main.hs
+    default-language: GHC2021
+    build-depends:
+        , HasChor
+        , base    >= 4.16 && < 4.20
+        , time    >= 1.11 && < 1.13
+        , stm     >=2.5.0.0
+
 executable bookseller-1-simple
     hs-source-dirs:   examples/bookseller-1-simple
     main-is:          Main.hs

@@ -36,7 +36,7 @@ bookseller = do
   
   title' <- (buyer, title) ~> seller
   title'' <- (buyer, title) ~> flea
-  title2 <- (buyer, title) ~> seller2
+  --title2 <- (buyer, title) ~> seller2
   
   bye <-
     buyer `locally` \_ -> do
@@ -53,21 +53,37 @@ bookseller = do
       putStrLn "Enter the flea price::"
       readLn :: IO Int
   
-  price2 <- 
-    seller2 `locally` \_ -> do
-      putStrLn "Enter the seller2 price::"
-      readLn :: IO Int
+  --price2 <- 
+   -- seller2 `locally` \_ -> do
+   --   putStrLn "Enter the seller2 price::"
+   --   readLn :: IO Int
 
-  hi <- 
-    tcb `locally` \_ -> do
-      putStrLn "Say Hi"
-      readLn :: IO Int
+  --price'' <- com (seller, price) (seller2, price2) buyer
   
-  price'' <- com (seller, price) (seller2, price2) tcb
-  price' <- sel (flea, fleaPrice) (tcb, price'')  buyer
+  --price'' <- (seller, price) ~> buyer
+
+  --buyer `locally` \un -> do
+  --          putStrLn $ "The compare is:: " ++ show (un price'')
+
+  price' <- sel (flea, fleaPrice) (seller, price) buyer
 
   buyer `locally` \un -> do
-            putStrLn $ "The price is:: " ++ show (un price')
+            putStrLn $ "The select is:: " ++ show (un price')
+
+  price'' <- sel (flea, fleaPrice) (buyer, price') buyer
+
+  buyer `locally` \un -> do
+            putStrLn $ "The second select is:: " ++ show (un price'')
+
+  price' <- sel (seller, price) (flea, fleaPrice) buyer
+
+  buyer `locally` \un -> do
+            putStrLn $ "The third select is:: " ++ show (un price')
+
+  price' <- sel (buyer, price'') (buyer, price') buyer
+
+  buyer `locally` \un -> do
+            putStrLn $ "The final price is:: " ++ show (un price')
 
   
   decision <- buyer `locally` \un -> return $ un price' < budget
@@ -85,21 +101,20 @@ bookseller = do
 
   bye' <- (buyer, bye) ~> seller
   bye'' <- (buyer, bye) ~> flea
-  bye2 <- (buyer, bye) ~> seller2
-  byetcb <- (buyer, bye) ~> tcb
+ -- bye2 <- (buyer, bye) ~> seller2
+  --byetcb <- (buyer, bye) ~> tcb
  
   seller `locally` \un -> do
             print (un bye')
 
-  seller2 `locally` \un -> do
-            print (un bye2)
+  --seller2 `locally` \un -> do
+   --         print (un bye2)
 
   flea `locally` \un -> do
             print (un bye'')
 
-  
-  tcb `locally` \un -> do
-            print (un byetcb)
+ -- tcb `locally` \un -> do
+  --          print (un byetcb)
 
   return ()
   
@@ -142,13 +157,18 @@ main = do
     "buyer"  -> runChoreography cfg bookseller "buyer"
     "seller" -> runChoreography cfg bookseller "seller"
     "flea" -> runChoreography cfg bookseller "flea"
-    "seller2" -> runChoreography cfg bookseller "seller2"
-    "tcb" -> runChoreography cfg bookseller "tcb"
   return ()
   where
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4240))
                        , ("seller", ("localhost", 4341))
-                       , ("seller2", ("localhost", 4343))
                        , ("flea", ("localhost", 4342))
-                       , ("tcb", ("localhost", 4344))
                        ]
+
+
+{--
+hi <- 
+    buyer `locally` \_ -> do
+      putStrLn "Say Hi"
+      readLn :: IO Int
+
+--}                       
