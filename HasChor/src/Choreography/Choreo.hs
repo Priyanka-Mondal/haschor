@@ -90,7 +90,7 @@ epp c l' = interpFreer handler c
       | toLocTm s1 == l'  && toLocTm s1 /= toLocTm r     = maysend (unwrap a) (toLocTm r) >> return Empty
       | toLocTm s2 == l'  && toLocTm s2 /= toLocTm r     = maysend (unwrap b) (toLocTm r) >> return Empty      
       | toLocTm s1 == l' && toLocTm s1 == toLocTm r && toLocTm s2 /= toLocTm r =  
-        wrap <$> mayrecv (toLocTm s2) 
+        wrap <$> mayrecv (toLocTm s2) (unwrap a)
       | toLocTm s2 == l' && toLocTm s2 == toLocTm r && toLocTm s1 /= toLocTm r = 
         wrap <$> mayrecv (toLocTm s1)  
       | toLocTm r == l'         = wrap <$> pairrecv (toLocTm s1) (toLocTm s2)

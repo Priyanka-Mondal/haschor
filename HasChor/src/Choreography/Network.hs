@@ -28,6 +28,7 @@ data NetworkSig m a where
        -> NetworkSig m a
   MayRecv :: Read a
        => LocTm
+       -> a
        -> NetworkSig m a
   PairRecv :: Read a 
        => LocTm
@@ -65,8 +66,8 @@ maysend a l = toFreer $ MaySend a l
 recv :: Read a => LocTm -> Network m a
 recv l = toFreer $ Recv l
 
-mayrecv :: Read a => LocTm -> Network m a
-mayrecv l = toFreer $ MayRecv l
+mayrecv :: Read a => LocTm -> a -> Network m a 
+mayrecv l a =  toFreer $ MayRecv l a
 
 pairrecv :: Read a => LocTm -> LocTm -> Network m a
 pairrecv l1 l2 = toFreer $ PairRecv l1 l2

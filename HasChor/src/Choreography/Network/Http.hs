@@ -80,11 +80,11 @@ liftSTM = liftIO . atomically
 --atomically :: forall a. STM a -> IO a
 -- if readTChan l1 == readTChan l2 then readTChan l2 else readTChan l2
 --checkAndRead :: forall a. Read a => TChan a -> STM a
-checkAndRead l = do
+checkAndRead l a = do
                  cond <- isEmptyTChan l
                  if not cond
                    then readTChan l
-                   else return "-1"
+                   else return (show a)
 
 class DefaultType a where
     getDefault :: a -> a
@@ -115,7 +115,7 @@ runNetworkHttp cfg self prog = do
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
       handler' (RecvCompare l1 l2)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2)
-      handler' (MayRecv l)   = liftSTM $ read <$> checkAndRead (chans ! l)
+      handler' (MayRecv l a)   = liftSTM $ read <$> checkAndRead (chans ! l) a
       handler' (MaySend a l)  = liftIO $ do
        res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of

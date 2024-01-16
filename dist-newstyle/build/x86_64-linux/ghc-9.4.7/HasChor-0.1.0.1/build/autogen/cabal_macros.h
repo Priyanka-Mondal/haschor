@@ -30,15 +30,15 @@
   (major1) == 0 && (major2) <  11 || \
   (major1) == 0 && (major2) == 11 && (minor) <= 5)
 #endif /* MIN_VERSION_bytestring */
-/* package http-client-0.7.15 */
+/* package http-client-0.7.14 */
 #ifndef VERSION_http_client
-#define VERSION_http_client "0.7.15"
+#define VERSION_http_client "0.7.14"
 #endif /* VERSION_http_client */
 #ifndef MIN_VERSION_http_client
 #define MIN_VERSION_http_client(major1,major2,minor) (\
   (major1) <  0 || \
   (major1) == 0 && (major2) <  7 || \
-  (major1) == 0 && (major2) == 7 && (minor) <= 15)
+  (major1) == 0 && (major2) == 7 && (minor) <= 14)
 #endif /* MIN_VERSION_http_client */
 /* package servant-0.20.1 */
 #ifndef VERSION_servant
@@ -100,26 +100,26 @@
   (major1) == 0 && (major2) <  2 || \
   (major1) == 0 && (major2) == 2 && (minor) <= 19)
 #endif /* MIN_VERSION_unordered_containers */
-/* package warp-3.3.31 */
+/* package warp-3.3.30 */
 #ifndef VERSION_warp
-#define VERSION_warp "3.3.31"
+#define VERSION_warp "3.3.30"
 #endif /* VERSION_warp */
 #ifndef MIN_VERSION_warp
 #define MIN_VERSION_warp(major1,major2,minor) (\
   (major1) <  3 || \
   (major1) == 3 && (major2) <  3 || \
-  (major1) == 3 && (major2) == 3 && (minor) <= 31)
+  (major1) == 3 && (major2) == 3 && (minor) <= 30)
 #endif /* MIN_VERSION_warp */
 
-/* tool gcc-9 */
+/* tool gcc-11 */
 #ifndef TOOL_VERSION_gcc
-#define TOOL_VERSION_gcc "9"
+#define TOOL_VERSION_gcc "11"
 #endif /* TOOL_VERSION_gcc */
 #ifndef MIN_TOOL_VERSION_gcc
 #define MIN_TOOL_VERSION_gcc(major1,major2,minor) (\
-  (major1) <  9 || \
-  (major1) == 9 && (major2) <  0 || \
-  (major1) == 9 && (major2) == 0 && (minor) <= 0)
+  (major1) <  11 || \
+  (major1) == 11 && (major2) <  0 || \
+  (major1) == 11 && (major2) == 0 && (minor) <= 0)
 #endif /* MIN_TOOL_VERSION_gcc */
 /* tool ghc-9.4.7 */
 #ifndef TOOL_VERSION_ghc
@@ -181,15 +181,15 @@
   (major1) == 9 && (major2) <  4 || \
   (major1) == 9 && (major2) == 4 && (minor) <= 7)
 #endif /* MIN_TOOL_VERSION_runghc */
-/* tool strip-2.34 */
+/* tool strip-2.38 */
 #ifndef TOOL_VERSION_strip
-#define TOOL_VERSION_strip "2.34"
+#define TOOL_VERSION_strip "2.38"
 #endif /* TOOL_VERSION_strip */
 #ifndef MIN_TOOL_VERSION_strip
 #define MIN_TOOL_VERSION_strip(major1,major2,minor) (\
   (major1) <  2 || \
-  (major1) == 2 && (major2) <  34 || \
-  (major1) == 2 && (major2) == 34 && (minor) <= 0)
+  (major1) == 2 && (major2) <  38 || \
+  (major1) == 2 && (major2) == 38 && (minor) <= 0)
 #endif /* MIN_TOOL_VERSION_strip */
 
 #ifndef CURRENT_PACKAGE_KEY
