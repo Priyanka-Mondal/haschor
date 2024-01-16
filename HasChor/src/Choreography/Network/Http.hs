@@ -81,12 +81,10 @@ liftSTM = liftIO . atomically
 -- if readTChan l1 == readTChan l2 then readTChan l2 else readTChan l2
 --checkAndRead :: forall a. Read a => TChan a -> STM a
 checkAndRead l = do
-                  newchan <- newTChan
-                  writeTChan newchan "-1"
-                  cond <- isEmptyTChan l
-                  if not cond
-                    then readTChan l
-                  else readTChan newchan
+                 cond <- isEmptyTChan l
+                 if not cond
+                   then readTChan l
+                   else return "-1"
 
 class DefaultType a where
     getDefault :: a -> a

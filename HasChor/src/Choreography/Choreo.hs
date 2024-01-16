@@ -83,17 +83,16 @@ epp c l' = interpFreer handler c
       | toLocTm r == l'        = wrap <$> recv (toLocTm s)
       | otherwise              = return Empty
     handler (Select s1 s2 r a b)
-      | toLocTm s1 == toLocTm r && toLocTm s2 == toLocTm r && toLocTm s1 == l' = if unwrap a == read "-1" 
-                                                              then return $ wrap (unwrap a) 
-                                                              else return $ wrap (unwrap b)
+      | toLocTm s1 == toLocTm r && toLocTm s2 == toLocTm r && toLocTm s1 == l' = return $ wrap (unwrap a) 
+        --if unwrap a == read "-1" 
+                                                              --then return $ wrap (unwrap a) 
+                                                              --else return $ wrap (unwrap b)
       | toLocTm s1 == l'  && toLocTm s1 /= toLocTm r     = maysend (unwrap a) (toLocTm r) >> return Empty
       | toLocTm s2 == l'  && toLocTm s2 /= toLocTm r     = maysend (unwrap b) (toLocTm r) >> return Empty      
-      | toLocTm s1 == l' && toLocTm s1 == toLocTm r = if unwrap a == read "-1" 
-                                   then wrap <$> mayrecv (toLocTm s2)
-                                   else return $ wrap (unwrap a)
-      | toLocTm s2 == l' && toLocTm s2 == toLocTm r = if unwrap b == read "-1" 
-                                   then wrap <$> mayrecv (toLocTm s1)
-                                   else return $ wrap (unwrap b)
+      | toLocTm s1 == l' && toLocTm s1 == toLocTm r && toLocTm s2 /= toLocTm r =  
+        wrap <$> mayrecv (toLocTm s2) 
+      | toLocTm s2 == l' && toLocTm s2 == toLocTm r && toLocTm s1 /= toLocTm r = 
+        wrap <$> mayrecv (toLocTm s1)  
       | toLocTm r == l'         = wrap <$> pairrecv (toLocTm s1) (toLocTm s2)
       | otherwise               = return Empty
     handler (Compare s1 s2 r a b)

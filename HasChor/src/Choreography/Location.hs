@@ -24,7 +24,7 @@ toLocTm = symbolVal
 data a @ (l :: LocTy)
   = Wrap a -- ^ A located value @a \@ l@ from location @l@'s perspective.
   | Empty  -- ^ A located value @a \@ l@ from locations other than @l@'s
-           -- perspective.
+  | Def a       -- perspective.
 
 -- | Wrap a value as a located value.
 wrap :: a -> a @ l
@@ -36,6 +36,7 @@ wrap = Wrap
 unwrap :: a @ l-> a
 unwrap (Wrap a) = a
 unwrap Empty    = error "this should never happen for a well-typed choreography"
+unwrap (Def a)    = error "Default value received"
 
 -- | Define a location at both type and term levels.
 mkLoc :: String -> Q [Dec]
