@@ -80,18 +80,31 @@ liftSTM = liftIO . atomically
 --atomically :: forall a. STM a -> IO a
 -- if readTChan l1 == readTChan l2 then readTChan l2 else readTChan l2
 --checkAndRead :: forall a. Read a => TChan a -> STM a
-checkAndRead l a = do
-                 cond <- isEmptyTChan l
-                 if not cond
-                   then readTChan l
-                   else return (show a)
+checkAndRead1 a l = do
+                      if a == "-1"
+                        then do 
+                          cond <- isEmptyTChan l
+                          if not cond
+                            then readTChan l
+                            else return a
+                        else return a
+                     
+checkAndRead2 l a = do
+                  cond <- isEmptyTChan l
+                  if not cond
+                    then do 
+                      one <- peekTChan l
+                      if one == "-1"
+                       then return a
+                       else readTChan l 
+                    else return a
+
 
 class DefaultType a where
     getDefault :: a -> a
 
 instance DefaultType (TVar a) where
     getDefault x = x
-
 
 runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
@@ -115,7 +128,8 @@ runNetworkHttp cfg self prog = do
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
       handler' (RecvCompare l1 l2)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2)
-      handler' (MayRecv l a)   = liftSTM $ read <$> checkAndRead (chans ! l) a
+      handler' (MayRecv1 a l)   = liftSTM $ read <$> checkAndRead1 (show a) (chans ! l)
+      handler' (MayRecv2 l a)   = liftSTM $ read <$> checkAndRead2 (chans ! l) (show a)
       handler' (MaySend a l)  = liftIO $ do
        res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
