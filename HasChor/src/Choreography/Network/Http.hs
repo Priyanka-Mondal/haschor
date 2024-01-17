@@ -80,6 +80,9 @@ liftSTM = liftIO . atomically
 --atomically :: forall a. STM a -> IO a
 -- if readTChan l1 == readTChan l2 then readTChan l2 else readTChan l2
 --checkAndRead :: forall a. Read a => TChan a -> STM a
+
+
+checkAndRead1 :: String -> TChan String -> STM String
 checkAndRead1 a l = do
                       if a == "-1"
                         then do 
@@ -89,6 +92,7 @@ checkAndRead1 a l = do
                             else return a
                         else return a
                      
+checkAndRead2 :: TChan String -> String -> STM String
 checkAndRead2 l a = do
                   cond <- isEmptyTChan l
                   if not cond
@@ -126,10 +130,14 @@ runNetworkHttp cfg self prog = do
         Left err -> putStrLn $ "ErrorSS : " ++ show err
         Right _  -> return ()
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
-      handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
+      handler' (PairRecv l1 l2)  = do
+        liftIO $ threadDelay 5000000
+        liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
       handler' (RecvCompare l1 l2)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2)
       handler' (MayRecv1 a l)   = liftSTM $ read <$> checkAndRead1 (show a) (chans ! l)
-      handler' (MayRecv2 l a)   = liftSTM $ read <$> checkAndRead2 (chans ! l) (show a)
+      handler' (MayRecv2 l a)   = do
+        liftIO $ threadDelay 1000000
+        liftSTM $ read <$> checkAndRead2 (chans ! l) (show a)
       handler' (MaySend a l)  = liftIO $ do
        res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
@@ -140,6 +148,7 @@ runNetworkHttp cfg self prog = do
     
 
     --readEither :: forall a.(Read a, Eq a) => TChan a -> TChan a -> STM a
+    readEither :: TChan String -> TChan String -> STM String
     readEither l1 l2 =  do 
           newchan <- newTChan
           writeTChan newchan "-1"

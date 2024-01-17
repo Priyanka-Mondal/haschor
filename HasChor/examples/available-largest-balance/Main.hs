@@ -43,22 +43,15 @@ largestAvailableBalance = do
         then return $ un bal1' 
         else return $ un bal2'
 
-  tcb `locally` \un -> do 
-    putStrLn $ "Largest is:" ++ show (un largest)
-  
-  hi <- client `locally` \un -> do 
-    putStrLn "Type to start:" 
-    readLn :: IO Int
+  client `locally` \un -> do 
+    putStrLn "Type to start at client:" 
+    getLine 
 
   availBal <- sel (b1, bal1) (b2, bal2) client
+  --larAv <- sel (tcb, largest) (client, availBal) client
 
   client `locally` \un -> do 
-    putStrLn $ "Available balance(bal1/bal2):" ++ show (un availBal)
-
-  larAv <- sel (tcb, largest) (client, availBal) client
-
-  client `locally` \un -> do 
-    putStrLn $ "Available balance (large/avail):" ++ show (un larAv)
+    putStrLn $ "Available Largest balance:" ++ show (un availBal)
 
   return ()
   

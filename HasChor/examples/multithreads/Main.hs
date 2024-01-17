@@ -76,7 +76,6 @@ counter <- newMVar 0
 -- if you want the results use mapM, if you dont use mapM_
 sleepMs n = threadDelay (n * 1000)
 
-
 {--
 nonDuplicatedTest = do
     messages1 <- newChan
@@ -108,7 +107,6 @@ broadcastReader channel name = do
     putStrLn (name ++ " read:==> " ++ msg)
     sleepMs 100
     --}
-
 
 main = do
   aliceVar <- newTVarIO 0
