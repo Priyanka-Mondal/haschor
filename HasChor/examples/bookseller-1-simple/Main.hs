@@ -85,7 +85,6 @@ bookseller = do
   buyer `locally` \un -> do
             putStrLn $ "The final price is:: " ++ show (un price')
 
-  
   decision <- buyer `locally` \un -> return $ un price' < budget
 
   cond (buyer, decision) \case
@@ -97,7 +96,6 @@ bookseller = do
       buyer `locally` \_ -> do
         putStrLn "The book's price is out of the budget"
         return Nothing
-
 
   bye' <- (buyer, bye) ~> seller
   bye'' <- (buyer, bye) ~> flea

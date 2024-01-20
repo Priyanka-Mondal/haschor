@@ -59,10 +59,10 @@ main :: IO ()
 main = do
   [loc] <- getArgs
   case loc of
-    "client" -> runChoreography cfg largestAvailableBalance "client"
-    "b1" -> runChoreography cfg largestAvailableBalance "b1"
-    "b2" -> runChoreography cfg largestAvailableBalance "b2"
-    "tcb" -> runChoreography cfg largestAvailableBalance "tcb"
+    "client" -> runChoreography cfg queues largestAvailableBalance "client"
+    "b1" -> runChoreography cfg queues largestAvailableBalance "b1"
+    "b2" -> runChoreography cfg queues largestAvailableBalance "b2"
+    "tcb" -> runChoreography cfg queues largestAvailableBalance "tcb"
   return ()
   where
     cfg = mkHttpConfig [ ("client",  ("localhost", 4240))
@@ -70,6 +70,7 @@ main = do
                        , ("b2", ("localhost", 4342))
                        , ("tcb", ("localhost", 4343))
                        ]
+    queues = 0
 
 
 balanceOfBank1 :: String -> Int

@@ -35,8 +35,8 @@ wrap = Wrap
 -- /Note:/ Unwrapping a empty located value will throw an exception.
 unwrap :: a @ l-> a
 unwrap (Wrap a) = a
-unwrap Empty    = error "this should never happen for a well-typed choreography"
-unwrap (Def a)    = error "Default value received"
+unwrap Empty    = error "This should never happen for a well-typed choreography"
+unwrap (Def a)  = error "Default value received"
 
 -- | Define a location at both type and term levels.
 mkLoc :: String -> Q [Dec]

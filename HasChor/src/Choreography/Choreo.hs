@@ -55,7 +55,6 @@ data ChoreoSig m a where
        -> (a -> Choreo m b)
        -> ChoreoSig m b
   
-
 -- | Monad for writing choreographies.
 type Choreo m = Freer (ChoreoSig m)
 

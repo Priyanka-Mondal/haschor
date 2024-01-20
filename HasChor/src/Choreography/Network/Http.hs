@@ -35,9 +35,9 @@ import GHC.Base (failIO)
 type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> PostNoContent
 
 -- * Http configuration
-
 -- | The HTTP backend configuration specifies how locations are mapped to
 -- network hosts and ports.
+
 newtype HttpConfig = HttpConfig
   { locToUrl :: HashMap LocTm BaseUrl
   }
@@ -81,7 +81,6 @@ liftSTM = liftIO . atomically
 -- if readTChan l1 == readTChan l2 then readTChan l2 else readTChan l2
 --checkAndRead :: forall a. Read a => TChan a -> STM a
 
-
 checkAndRead1 :: String -> TChan String -> STM String
 checkAndRead1 a l = do
                       if a == "-1"
@@ -104,11 +103,6 @@ checkAndRead2 l a = do
                     else return a
 
 
-class DefaultType a where
-    getDefault :: a -> a
-
-instance DefaultType (TVar a) where
-    getDefault x = x
 
 runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
@@ -145,9 +139,7 @@ runNetworkHttp cfg self prog = do
         Right _  -> return ()
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
       
-    
-
-    --readEither :: forall a.(Read a, Eq a) => TChan a -> TChan a -> STM a
+     --readEither :: forall a.(Read a, Eq a) => TChan a -> TChan a -> STM a
     readEither :: TChan String -> TChan String -> STM String
     readEither l1 l2 =  do 
           newchan <- newTChan
@@ -185,23 +177,6 @@ runNetworkHttp cfg self prog = do
               else readTChan newchan
            else readTChan newchan
 
-   {-- readCompare :: forall a b. (Read a, Eq a, Read b, Eq b) => TChan a -> TChan a -> b -> IO (Either (STM a) b)
-    readCompare l1 l2 failMessage = do
-     cond1 <- atomically $ isEmptyTChan l1
-     newchan <- newTChan
-     if not cond1
-        then do
-            cond2 <- atomically $ isEmptyTChan l2
-            if not cond2
-                then return (Left (readTChan l2))
-                else return (Right failMessage)
-        else return (Right failMessage)
-     --}
-   {--
-    readEither :: forall a. Read a => TChan a -> TChan a -> STM a
-    readEither l1 l2 =   readTChan l1 `orElse` readTChan l2
-    --}
-
 
     api :: Proxy API 
     api = Proxy
@@ -221,8 +196,29 @@ runNetworkHttp cfg self prog = do
     recvThread cfg chans = run (baseUrlPort $ locToUrl cfg ! self ) (serve api $ server chans)
 
 
-    
 
+type RecvQueue = HashMap (LocTm,LocTm) (TQueue String)
+
+uniquePairs ::Eq a => [a] -> [(a, a)]
+uniquePairs xs = [(x, y) | x <- xs, y <- xs, x /= y]
+
+makeQueues :: HttpConfig -> STM RecvQueue
+makeQueues cfg = foldM f HashMap.empty (uniquePairs (locs cfg))
+  where
+    f :: HashMap (LocTm,LocTm) (TQueue String) -> (LocTm,LocTm)
+      -> STM (HashMap (LocTm,LocTm) (TQueue String))
+    f hm pair = do 
+      newQ <- newTQueue
+      return $ HashMap.insert pair newQ hm
+
+readQueue :: RecvQueue -> (LocTm, LocTm) -> STM String
+readQueue recvq (l1, l2) =   readTQueue q 
+   where 
+    q = recvq ! (l1,l2)
+
+writeQueue :: RecvQueue -> (LocTm, LocTm) -> String -> STM ()
+writeQueue recvq pair =  writeTQueue (recvq ! pair)
+     
 instance Backend HttpConfig where
   runNetwork = runNetworkHttp
 
