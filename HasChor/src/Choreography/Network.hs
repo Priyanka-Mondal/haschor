@@ -98,7 +98,7 @@ broadcast a = toFreer $ BCast a
 -- carries necessary bookkeeping information, then defines @c@ as an instance
 -- of `Backend` and provides a `runNetwork` function.
 class Backend c where
-  runNetworkQ :: MonadIO m => c -> LocTm -> Network m a -> m a
+  runNetwork :: MonadIO m => c -> LocTm -> Network m a -> m a
 
 --class Backend c where
 --  runNetworkQ :: MonadIO m => c -> LocTm -> Network m a -> m a

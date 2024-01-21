@@ -40,16 +40,39 @@ largestAvailableBalance = do
     putStrLn "Type to start at client:" 
     getLine 
 
+
+  bal1' <-
+    b1 `locally` \_ -> do
+      putStrLn "Again Enter bal1::"
+      readLn :: IO Int
+
+  bal2' <-
+    b2 `locally` \_ -> do
+      putStrLn "Again Enter bal2::"
+      readLn :: IO Int
+
   availBal1 <- (b1, bal1) ~> client
   availBal2 <- (b2, bal2) ~> client
-
-  --larAv <- sel (tcb, largest) (client, availBal) client
+  availBal1' <- (b1, bal1') ~> client
+  availBal2' <- (b2, bal2') ~> client
 
   client `locally` \un -> do 
     putStrLn $ "Available balance1:" ++ show (un availBal1)
 
   client `locally` \un -> do 
     putStrLn $ "Available balance2:" ++ show (un availBal2)
+
+  client `locally` \un -> do 
+    putStrLn $ "Available balance1:" ++ show (un availBal1')
+
+  client `locally` \un -> do 
+    putStrLn $ "Available balance2:" ++ show (un availBal2')
+
+  b1 `locally` \_ -> do
+      putStrLn "b1: I am done!"
+
+  b2 `locally` \_ -> do
+      putStrLn "b2: I am done!"
 
   return ()
   
@@ -62,12 +85,9 @@ main = do
     "b2" -> runChoreography cfg largestAvailableBalance "b2"
   return ()
   where
-    cfg = mkHttpConfigQ [ (("client","b1"),  ("localhost", 4240))
-                        , (("client","b2"), ("localhost", 4341))
-                        , (("b1", "client"), ("localhost", 4342))
-                        , (("b1", "b2"), ("localhost", 4343))
-                        , (("b2", "client"), ("localhost", 4344))
-                        , (("b2", "b1"), ("localhost", 4345))
+    cfg = mkHttpConfig [ ("client",  ("localhost", 4240))
+                        , ("b1", ("localhost", 4341))
+                        , ("b2", ("localhost", 4342))
                        ]
 
 

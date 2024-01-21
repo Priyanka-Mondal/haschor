@@ -95,9 +95,11 @@ mkRecvChans cfg = foldM f HashMap.empty (locs cfg)
       return $ HashMap.insert l c hm
 
 type RecvQueue = HashMap (LocTm,LocTm) (TQueue String)
+uniquePairs :: Eq a => [a] -> [(a, a)]
+uniquePairs xs = [(x, y) | x <- xs, y <- xs, x /= y]
 
-makeQueues :: HttpConfigQ -> STM RecvQueue
-makeQueues cfg = foldM f HashMap.empty (locPairs cfg)
+makeQueues :: HttpConfig -> STM RecvQueue
+makeQueues cfg = foldM f HashMap.empty (uniquePairs (locs cfg))
   where
     f :: HashMap (LocTm,LocTm) (TQueue String) -> (LocTm,LocTm)
       -> STM (HashMap (LocTm,LocTm) (TQueue String))
@@ -118,39 +120,38 @@ liftSTM :: MonadIO m => STM a -> m a
 liftSTM = liftIO . atomically
 
 
-
-runNetworkHttp :: (MonadIO m) => HttpConfigQ -> LocTm -> Network m a -> m a
+runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings
-  chans <- liftSTM $ makeQueues cfg
-  recvT <- liftIO $ forkIO (recvThreadQ cfg chans)
-  result <- runNetworkMain mgr chans prog
+  queues <- liftSTM $ makeQueues cfg
+  recvT <- liftIO $ forkIO (recvThreadQ cfg queues)
+  result <- runNetworkMain mgr queues prog
   liftIO $ threadDelay 1000000 -- wait until all outstanding requests to be completed
   liftIO $ killThread recvT
   return result
   where
     runNetworkMain :: (MonadIO m) => Manager -> RecvQueue -> Network m a -> m a
-    runNetworkMain mgr chans = interpFreer handler' where
+    runNetworkMain mgr queues = interpFreer handler' where
       handler' :: (MonadIO m) => NetworkSig m a -> m a
       handler' (Run m)    = m
       handler' (Send a l) = liftIO $ do
-       res <- runClientM (send' self (show a)) (mkClientEnv mgr (locToUrlQ cfg ! (self,l)))
+       res <- runClientM (send' self (show a)) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
         Left err -> putStrLn $ "ErrorSS : " ++ show err
         Right _  -> return ()
-      handler' (Recv l)   = liftSTM $ read <$> readQueue chans (self, l)
+      handler' (Recv l)   = liftSTM $ read <$> readQueue queues (self, l)
       handler' (PairRecv l1 l2)  = do
         liftIO $ threadDelay 5000000
-        liftSTM $ read <$> readQueue chans (self, l1)
-      handler' (RecvCompare l1 l2)  = liftSTM $ read <$>  readQueue chans (self, l1)
-      handler' (MayRecv1 a l)   = liftSTM $ read <$>  readQueue chans (self, l)
-      handler' (MayRecv2 l a)   = liftSTM $ read <$>  readQueue chans (self, l)
+        liftSTM $ read <$> readQueue queues (self, l1)
+      handler' (RecvCompare l1 l2)  = liftSTM $ read <$>  readQueue queues (self, l1)
+      handler' (MayRecv1 a l)   = liftSTM $ read <$>  readQueue queues (self, l)
+      handler' (MayRecv2 l a)   = liftSTM $ read <$>  readQueue queues (self, l)
       handler' (MaySend a l)  = liftIO $ do
-       res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrlQ cfg ! (self,l)))
+       res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
         Left err -> putStrLn "(Program continued without an Input from me)"
         Right _  -> return ()
-      handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (uniqueLocs (locPairs cfg))
+      handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
       
      --readEither :: forall a.(Read a, Eq a) => TChan a -> TChan a -> STM a
 
@@ -161,13 +162,13 @@ runNetworkHttp cfg self prog = do
     send' :: LocTm -> String -> ClientM NoContent
     send' = client api
 
-    server :: RecvChans -> Server API
-    server chans = handler
-      where
-       handler :: LocTm -> String -> Handler NoContent
-       handler rmt msg = do
-        liftSTM $ writeTChan (chans ! rmt) msg
-        return NoContent
+    --server :: RecvChans -> Server API
+    --server chans = handler
+     -- where
+     --  handler :: LocTm -> String -> Handler NoContent
+     --  handler rmt msg = do
+     --   liftSTM $ writeTChan (chans ! rmt) msg
+      --  return NoContent
     
     serverQ :: RecvQueue -> Server API
     serverQ queues = handler
@@ -177,16 +178,11 @@ runNetworkHttp cfg self prog = do
         liftSTM $ writeTQueue (queues ! (self, rmt)) msg
         return NoContent
 
-    recvThread :: HttpConfig -> RecvChans -> IO ()
-    recvThread cfg chans = run (baseUrlPort $ locToUrl cfg ! self ) (serve api $ server chans)
+    --recvThread :: HttpConfig -> RecvChans -> IO ()
+    --recvThread cfg chans = run (baseUrlPort $ locToUrl cfg ! self ) (serve api $ server chans)
 
-    recvThreadQ :: HttpConfigQ -> RecvQueue -> IO ()
-    recvThreadQ cfg chans = createRecvQueues (locPairs cfg) 
-      where 
-        createRecvQueues ((self,l):xs) = do 
-          run (baseUrlPort $ locToUrlQ cfg ! (self,l) ) (serve api $ serverQ chans)
-          createRecvQueues xs
-          return ()
+    recvThreadQ :: HttpConfig -> RecvQueue -> IO ()
+    recvThreadQ cfg chans = run (baseUrlPort $ locToUrl cfg ! self) (serve api $ serverQ chans)
 
       --let pair = locPairs cfg
       --case pair of 
@@ -218,9 +214,9 @@ checkAndRead2 l a = do
 
 
      
-instance Backend HttpConfigQ where
-  runNetworkQ :: MonadIO m => HttpConfigQ -> LocTm -> Network m a -> m a
-  runNetworkQ = runNetworkHttp
+instance Backend HttpConfig where
+  runNetwork :: MonadIO m => HttpConfig -> LocTm -> Network m a -> m a
+  runNetwork = runNetworkHttp
 
 
 
