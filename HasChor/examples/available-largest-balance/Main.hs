@@ -35,23 +35,21 @@ largestAvailableBalance = do
       putStrLn "Enter bal2::"
       readLn :: IO Int
   
-  bal1' <- (b1, bal1) ~> tcb
-  bal2' <- (b2, bal2) ~> tcb
-  
-  largest <- tcb `locally` \un -> do 
-    if  un bal1' > un bal2'
-        then return $ un bal1' 
-        else return $ un bal2'
-
+   
   client `locally` \un -> do 
     putStrLn "Type to start at client:" 
     getLine 
 
-  availBal <- sel (b1, bal1) (b2, bal2) client
+  availBal1 <- (b1, bal1) ~> client
+  availBal2 <- (b2, bal2) ~> client
+
   --larAv <- sel (tcb, largest) (client, availBal) client
 
   client `locally` \un -> do 
-    putStrLn $ "Available Largest balance:" ++ show (un availBal)
+    putStrLn $ "Available balance1:" ++ show (un availBal1)
+
+  client `locally` \un -> do 
+    putStrLn $ "Available balance2:" ++ show (un availBal2)
 
   return ()
   
@@ -59,18 +57,18 @@ main :: IO ()
 main = do
   [loc] <- getArgs
   case loc of
-    "client" -> runChoreography cfg queues largestAvailableBalance "client"
-    "b1" -> runChoreography cfg queues largestAvailableBalance "b1"
-    "b2" -> runChoreography cfg queues largestAvailableBalance "b2"
-    "tcb" -> runChoreography cfg queues largestAvailableBalance "tcb"
+    "client" -> runChoreography cfg largestAvailableBalance "client"
+    "b1" -> runChoreography cfg largestAvailableBalance "b1"
+    "b2" -> runChoreography cfg largestAvailableBalance "b2"
   return ()
   where
-    cfg = mkHttpConfig [ ("client",  ("localhost", 4240))
-                       , ("b1", ("localhost", 4341))
-                       , ("b2", ("localhost", 4342))
-                       , ("tcb", ("localhost", 4343))
+    cfg = mkHttpConfigQ [ (("client","b1"),  ("localhost", 4240))
+                        , (("client","b2"), ("localhost", 4341))
+                        , (("b1", "client"), ("localhost", 4342))
+                        , (("b1", "b2"), ("localhost", 4343))
+                        , (("b2", "client"), ("localhost", 4344))
+                        , (("b2", "b1"), ("localhost", 4345))
                        ]
-    queues = 0
 
 
 balanceOfBank1 :: String -> Int

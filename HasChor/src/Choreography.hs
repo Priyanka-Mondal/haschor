@@ -22,7 +22,9 @@ module Choreography (
   Host,
   Port,
   HttpConfig,
-   mkHttpConfig,
+  HttpConfigQ,
+  mkHttpConfig,
+  mkHttpConfigQ,
 
   -- * Running choreographies
   runChoreo,
@@ -40,5 +42,5 @@ import Data.Proxy
 
 
 -- | Run a choreography with a message transport backend.
-runChoreography :: (Backend config, MonadIO m) => config -> Int -> Choreo m a -> LocTm -> m a
-runChoreography cfg q choreo l = runNetwork cfg l (epp choreo l)
+runChoreography :: (Backend config, MonadIO m) => config -> Choreo m a -> LocTm -> m a
+runChoreography cfg choreo l = runNetworkQ cfg l (epp choreo l)
