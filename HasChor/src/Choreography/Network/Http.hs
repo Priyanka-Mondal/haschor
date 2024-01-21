@@ -139,10 +139,8 @@ runNetworkHttp cfg self prog = do
        case res of
         Left err -> putStrLn $ "ErrorSS : " ++ show err
         Right _  -> return ()
-      handler' (Recv l)   = liftSTM $ read <$> readQueue queues (self, l)
-      handler' (PairRecv l1 l2)  = do
-        liftIO $ threadDelay 5000000
-        liftSTM $ read <$> readQueue queues (self, l1)
+      handler' (Recv l) = liftSTM $ read <$> readQueue queues (self, l)
+      handler' (PairRecv l1 l2) = liftSTM $ read <$> readQEither (queues ! (self, l1)) (queues ! (self, l2))
       handler' (RecvCompare l1 l2)  = liftSTM $ read <$>  readQueue queues (self, l1)
       handler' (MayRecv1 a l)   = liftSTM $ read <$>  readQueue queues (self, l)
       handler' (MayRecv2 l a)   = liftSTM $ read <$>  readQueue queues (self, l)
@@ -154,7 +152,25 @@ runNetworkHttp cfg self prog = do
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
       
      --readEither :: forall a.(Read a, Eq a) => TChan a -> TChan a -> STM a
-
+    readQEither :: TQueue String -> TQueue String -> STM String
+    readQEither q1 q2 =  do 
+          cond1 <-  isEmptyTQueue q1
+          if cond1
+            then do
+              cond2 <- isEmptyTQueue q2
+              if cond2 
+                then return "-2"
+                else readTQueue q2
+            else do
+              one <-  peekTQueue q1
+              if one == "-1"
+                then do 
+                  cond2 <- isEmptyTQueue q2
+                  if cond2 
+                    then readTQueue q1 
+                    else readTQueue q2
+                else readTQueue q1 
+  
 
     api :: Proxy API 
     api = Proxy
