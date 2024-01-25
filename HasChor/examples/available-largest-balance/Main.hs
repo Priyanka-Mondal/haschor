@@ -21,7 +21,6 @@ b2 = Proxy
 tcb :: Proxy "tcb"
 tcb = Proxy
 
-
 -- | FLAQR example 2
 largestAvailableBalance :: Choreo IO () --(Maybe Day @ "client")
 largestAvailableBalance = do
