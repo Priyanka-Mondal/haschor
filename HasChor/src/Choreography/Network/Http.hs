@@ -124,9 +124,7 @@ runNetworkHttp cfg self prog = do
         Left err -> putStrLn $ "ErrorSS : " ++ show err
         Right _  -> return ()
       handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
-      handler' (PairRecv l1 l2)  = do
-        liftIO $ threadDelay 5000000
-        liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
+      handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
       handler' (RecvCompare l1 l2)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2)
       handler' (MayRecv1 a l)   = liftSTM $ read <$> checkAndRead1 (show a) (chans ! l)
       handler' (MayRecv2 l a)   = do
@@ -135,21 +133,19 @@ runNetworkHttp cfg self prog = do
       handler' (MaySend a l)  = liftIO $ do
        res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        case res of
-        Left err -> putStrLn "(Program continued without an Input from me)"
+        Left err -> putStrLn "(Program continued without my Input)"
         Right _  -> return ()
       handler' (BCast a)  = mapM_ handler' $ fmap (Send a) (locs cfg)
       
      --readEither :: forall a.(Read a, Eq a) => TChan a -> TChan a -> STM a
     readEither :: TChan String -> TChan String -> STM String
     readEither l1 l2 =  do 
-          newchan <- newTChan
-          writeTChan newchan "-1"
           cond1 <- isEmptyTChan l1
           if cond1
             then do
               cond2 <- isEmptyTChan l2
               if cond2 
-                then readTChan newchan
+                then return "-1"
                 else readTChan l2
             else do
               one <- peekTChan l1

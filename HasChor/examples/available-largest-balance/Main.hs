@@ -35,44 +35,49 @@ largestAvailableBalance = do
       putStrLn "Enter bal2::"
       readLn :: IO Int
   
-   
   client `locally` \un -> do 
     putStrLn "Type to start at client:" 
     getLine 
-
 
   bal1' <-
     b1 `locally` \_ -> do
       putStrLn "Again Enter bal1::"
       readLn :: IO Int
 
+  s <- sel (b2, bal2) (b1, bal1) client
+
   bal2' <-
     b2 `locally` \_ -> do
       putStrLn "Again Enter bal2::"
       readLn :: IO Int
+  
+  client `locally` \un  -> do
+      putStrLn $ "balance1 " ++ (show (un s))
 
-  availBal1 <- (b1, bal1) ~> client
-  availBal2 <- (b2, bal2) ~> client
-  availBal1' <- (b1, bal1') ~> client
-  availBal2' <- (b2, bal2') ~> client
+  s' <- sel (b2, bal2') (b1, bal1') client
 
-  client `locally` \un -> do 
-    putStrLn $ "Available balance1:" ++ show (un availBal1)
+  client `locally` \un  -> do
+      putStrLn $ "balance2 " ++ (show (un s'))
 
-  client `locally` \un -> do 
-    putStrLn $ "Available balance2:" ++ show (un availBal2)
+  bal3 <-
+    b2 `locally` \_ -> do
+      putStrLn "Again Enter bal3::"
+      readLn :: IO Int
+  
+  s'' <- sel (b2, bal3) (b1, bal1') client
+  
+  client `locally` \un  -> do
+      putStrLn $ "balance3 " ++ (show (un s''))
 
-  client `locally` \un -> do 
-    putStrLn $ "Available balance1:" ++ show (un availBal1')
-
-  client `locally` \un -> do 
-    putStrLn $ "Available balance2:" ++ show (un availBal2')
+  sec <- (b1, bal1') ~> client
+  client `locally` \un  -> do
+      putStrLn $ "balance3 " ++ (show (un sec))
 
   b1 `locally` \_ -> do
       putStrLn "b1: I am done!"
 
   b2 `locally` \_ -> do
-      putStrLn "b2: I am done!"
+      putStrLn "b2: I am done!!!"
 
   return ()
   
@@ -85,7 +90,7 @@ main = do
     "b2" -> runChoreography cfg largestAvailableBalance "b2"
   return ()
   where
-    cfg = mkHttpConfig [ ("client",  ("localhost", 4240))
+    cfg = mkHttpConfig [ ("client",  ("localhost", 4243))
                         , ("b1", ("localhost", 4341))
                         , ("b2", ("localhost", 4342))
                        ]
