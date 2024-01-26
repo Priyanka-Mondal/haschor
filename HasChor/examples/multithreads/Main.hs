@@ -127,7 +127,7 @@ main = do
   putStrLn $ "Final Charlie: " ++ show finalCharlie
 
 payThread :: TVar Int -> Int -> Int -> String-> IO ()
-payThread var interval amount thd= void $ forkIO $ forever $ do --forever deleted
+payThread var interval amount thd = void $ forkIO $ forever $ do --forever deleted
   threadDelay interval
   current <- readTVarIO var --atomically $ readTVar var
   putStrLn $ "Adding++ " ++ thd ++ "::"++ show (current+amount)

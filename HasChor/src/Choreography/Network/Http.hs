@@ -26,7 +26,6 @@ import Control.Applicative (Alternative(..),(<|>))
 import Control.Concurrent.STM
 import System.Timeout
 import System.IO.Unsafe (unsafePerformIO)
-
 import Debug.Trace
 import Data.Bits (Bits(xor))
 import GHC.Base (failIO)
@@ -61,7 +60,38 @@ mkHttpConfig = HttpConfig . HashMap.fromList . fmap (fmap f)
 locs :: HttpConfig -> [LocTm]
 locs = HashMap.keys . locToUrl
 
--- * Receiving channels
+uniquePairs ::Eq a => [a] -> [(a, a)]
+uniquePairs xs = [(x, y) | x <- xs, y <- xs, x /= y]
+
+type ThdId = HashMap (LocTm,LocTm) ThreadId
+writeThdId :: LocTm -> LocTm -> ThreadId ->ThdId -> IO ThdId
+writeThdId s r tid hm = return $ HashMap.insert (s,r) tid hm
+
+mkThdId :: HttpConfig -> IO ThdId
+mkThdId cfg = foldM f HashMap.empty (uniquePairs (locs cfg))
+  where
+    f :: ThdId -> (LocTm,LocTm)
+      -> IO ThdId
+    f hm (s,r) = do
+      temp <- forkIO (putStrLn "")
+      let ret = HashMap.insert (s,r) temp hm
+      killThread temp
+      return ret
+
+
+type ChanMap = HashMap (LocTm,LocTm) (TChan String)
+writeChanMap :: LocTm -> LocTm -> TChan String -> ChanMap -> IO ChanMap
+writeChanMap s r tid hm = return $ HashMap.insert (s,r) tid hm
+
+mkChanMap :: HttpConfig -> STM ChanMap
+mkChanMap cfg = foldM f HashMap.empty (uniquePairs (locs cfg))
+  where
+    f :: ChanMap -> (LocTm,LocTm)
+      -> STM ChanMap
+    f hm (s,r) = do
+      nc <- newTChan
+      let ret = HashMap.insert (s,r) nc hm
+      return ret
 
 type RecvChans = HashMap LocTm (TChan String)
 
@@ -102,28 +132,50 @@ checkAndRead2 l a = do
                        else readTChan l 
                     else return a
 
+messageWriter :: TChan String -> String -> STM ()
+messageWriter channel name = do
+    writeTChan channel name
 
+--messageReader :: TChan a -> STM ()
+--messageReader channel = do 
+--  readTChan channel
+    
 
 runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings
   chans <- liftSTM $ mkRecvChans cfg
+  thdids <- liftIO $ mkThdId cfg
+  chanmaps <- liftSTM $ mkChanMap cfg
   recvT <- liftIO $ forkIO (recvThread cfg chans)
-  result <- runNetworkMain mgr chans prog
+  result <- runNetworkMain mgr chans chanmaps thdids prog 
   liftIO $ threadDelay 1000000 -- wait until all outstanding requests to be completed
   liftIO $ killThread recvT
   return result
   where
-    runNetworkMain :: (MonadIO m) => Manager -> RecvChans -> Network m a -> m a
-    runNetworkMain mgr chans = interpFreer handler' where
+    runNetworkMain :: (MonadIO m) => Manager -> RecvChans -> ChanMap -> ThdId -> Network m a -> m a
+    runNetworkMain mgr chans chanmap thdids = interpFreer handler' where
       handler' :: (MonadIO m) => NetworkSig m a -> m a
       handler' (Run m)    = m
       handler' (Send a l) = liftIO $ do
-       res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
-       case res of
-        Left err -> putStrLn $ "ErrorSS : " ++ show err
-        Right _  -> return ()
-      handler' (Recv l)   = liftSTM $ read <$> readTChan (chans ! l)
+       newchan <- atomically newTChan
+       recvT <- forkIO (atomically $ messageWriter newchan (show a))
+       thdids <- liftIO $ writeThdId self l recvT thdids
+       chanmap <- liftIO $ writeChanMap self l newchan chanmap
+       putStrLn $ "here-------------->" ++ show (thdids ! (self,l)) ++" "
+       ret <- atomically $ readTChan (chanmap ! (l,self)) -- how about doing forkIO messagereader also
+       putStrLn $ "ret ==="++ ret
+       --res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
+       --case res of
+       -- Left err ->putStrLn "(did not work)"
+       -- Right _  -> return ()
+      handler' (Recv l)   = liftIO $ do 
+        putStrLn $ "fetch"
+        --recvT <- forkIO (recvThread cfg chans)
+        ret <- liftSTM $ read <$> readTChan (chanmap ! (l,self)) 
+        putStrLn $ "fetch-------------->" ++ show (thdids ! (l,self))  ++" "
+        --liftIO $ killThread (thdids ! (l,self))
+        return ret 
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
       handler' (RecvCompare l1 l2)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2)
       handler' (MayRecv1 a l)   = liftSTM $ read <$> checkAndRead1 (show a) (chans ! l)
@@ -195,8 +247,6 @@ runNetworkHttp cfg self prog = do
 
 type RecvQueue = HashMap (LocTm,LocTm) (TQueue String)
 
-uniquePairs ::Eq a => [a] -> [(a, a)]
-uniquePairs xs = [(x, y) | x <- xs, y <- xs, x /= y]
 
 makeQueues :: HttpConfig -> STM RecvQueue
 makeQueues cfg = foldM f HashMap.empty (uniquePairs (locs cfg))

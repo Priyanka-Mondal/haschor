@@ -29,15 +29,16 @@ largestAvailableBalance = do
       putStrLn "Enter bal1::"
       readLn :: IO Int
 
-  bal2 <-
-    b2 `locally` \_ -> do
-      putStrLn "Enter bal2::"
-      readLn :: IO Int
+  
   
   client `locally` \un -> do 
     putStrLn "Type to start at client:" 
     getLine 
-
+  {--
+  bal2 <-
+    b2 `locally` \_ -> do
+      putStrLn "Enter bal2::"
+      readLn :: IO Int
   bal1' <-
     b1 `locally` \_ -> do
       putStrLn "Again Enter bal1::"
@@ -63,14 +64,16 @@ largestAvailableBalance = do
       putStrLn "Again Enter bal3::"
       readLn :: IO Int
   
-  s'' <- sel (b2, bal3) (b1, bal1') client
+  --s'' <- sel (b2, bal3) (b1, bal1') client
   
   client `locally` \un  -> do
       putStrLn $ "balance3 " ++ (show (un s''))
+ --}
+  sec <- (b1, bal1) ~> client
 
-  sec <- (b1, bal1') ~> client
   client `locally` \un  -> do
       putStrLn $ "balance3 " ++ (show (un sec))
+
 
   b1 `locally` \_ -> do
       putStrLn "b1: I am done!"
