@@ -128,7 +128,7 @@ mkChanMaps cfg = do
       -> IO ChanMap
     f hm (s,r) = do
       nc <- atomically newTChan
-      --atomically $ writeTChan nc "402"
+      atomically $ writeTChan nc "402"
       let ret = HashMap.insert (s,r) nc  hm
       return ret
 

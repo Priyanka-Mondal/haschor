@@ -175,8 +175,11 @@ runNetworkHttp cfg chanmapS self prog = do
         putStrLn "fetch"
         --recvT <- forkIO (recvThread cfg chans)
         let newchan = chanmaps ! (self,l)
+        putStrLn "fetch0.1"
         ret1 <- atomically $ readTChan newchan
+        putStrLn "fetch0.1"
         ret2 <- atomically $ readTChan (chanmaps ! (l,self))
+        putStrLn "fetch1.1"
         putStrLn $ "fetch1-------------->" ++ ret1
         putStrLn $ "fetch2-------------->" ++ ret2
         --mapM_ (print.fst) (HashMap.toList chanmap)
