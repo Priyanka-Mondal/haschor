@@ -22,23 +22,23 @@ module Choreography (
   Host,
   Port,
   HttpConfig,
-   mkHttpConfig,
-
-  -- * Running choreographies
+  mkHttpConfig,
+  mkChanMaps,
   runChoreo,
   runChoreography
   ) where
 
-import Choreography.Location
+import Choreography.Location ( LocTm, mkLoc, type (@), LocTy )
 import Choreography.Choreo
 import Choreography.Network
 import Choreography.Network.Http
 import Choreography.Network.Local
 import Control.Monad.IO.Class
+import Control.Concurrent.STM
 import Data.Proxy
 
 
 
 -- | Run a choreography with a message transport backend.
-runChoreography :: (Backend config, MonadIO m) => config -> Choreo m a -> LocTm -> m a
-runChoreography cfg choreo l = runNetwork cfg l (epp choreo l)
+runChoreography :: (Backend config, MonadIO m) => config -> IO ChanMap -> Choreo m a -> LocTm -> m a
+runChoreography cfg chanmap choreo l = runNetwork cfg chanmap l (epp choreo l)

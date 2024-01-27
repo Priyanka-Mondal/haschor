@@ -6,8 +6,17 @@ module Choreography.Network where
 
 import Choreography.Location
 import Control.Monad.Freer
-import Control.Monad.IO.Class
+import Control.Monad.IO.Class ( MonadIO )
 import Control.Applicative (Alternative(..),(<|>))
+import Data.HashMap.Strict (HashMap, (!))
+import Data.HashMap.Strict qualified as HashMap
+import Control.Concurrent.STM
+import Control.Monad
+import Servant.API
+import Servant.Client (ClientM, client, runClientM, BaseUrl(..), mkClientEnv, Scheme(..))
+import Servant.Server (Handler, Server, serve)
+import Language.Haskell.TH (Dec(StandaloneDerivD))
+--import Choreography.Network.Http (ChanMap)
 -- * The Network monad
 
 -- | Effect signature for the `Network` monad.
@@ -97,8 +106,34 @@ broadcast a = toFreer $ BCast a
 -- | A message transport backend defines a /configuration/ of type @c@ that
 -- carries necessary bookkeeping information, then defines @c@ as an instance
 -- of `Backend` and provides a `runNetwork` function.
+newtype HttpConfig = HttpConfig
+  { locToUrl :: HashMap LocTm BaseUrl
+  }
+locs :: HttpConfig -> [LocTm]
+locs = HashMap.keys . locToUrl
+
+uniquePairs ::Eq a => [a] -> [(a, a)]
+uniquePairs xs = [(x, y) | x <- xs, y <- xs, x /= y]
+
+type ChanMap = HashMap (LocTm,LocTm) (TChan String)
+writeChanMap :: LocTm -> LocTm -> TChan String -> ChanMap -> IO ChanMap
+writeChanMap s r tid hm = return $ HashMap.insert (s,r) tid hm
+
+mkChanMaps :: HttpConfig -> IO ChanMap
+mkChanMaps cfg = do 
+     putStrLn "who AM I?"
+     foldM f HashMap.empty (uniquePairs (locs cfg))
+  where
+    f :: ChanMap -> (LocTm,LocTm)
+      -> IO ChanMap
+    f hm (s,r) = do
+      nc <- atomically newTChan
+      --atomically $ writeTChan nc "402"
+      let ret = HashMap.insert (s,r) nc  hm
+      return ret
+
 class Backend c where
-  runNetwork :: MonadIO m => c -> LocTm -> Network m a -> m a
+  runNetwork :: MonadIO m => c -> IO ChanMap -> LocTm -> Network m a -> m a
 
 {--
 TryRecv :: Read a

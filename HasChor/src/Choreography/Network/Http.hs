@@ -24,12 +24,24 @@ import Network.Wai.Handler.Warp (run)
 import Text.Read (readEither, Lexeme (String))
 import Control.Applicative (Alternative(..),(<|>))
 import Control.Concurrent.STM
+    ( STM,
+      TChan,
+      TQueue,
+      newTChan,
+      atomically,
+      isEmptyTChan,
+      readTChan,
+      peekTChan,
+      writeTChan,
+      newTQueue,
+      readTQueue,
+      writeTQueue )
 import System.Timeout
 import System.IO.Unsafe (unsafePerformIO)
 import Debug.Trace
 import Data.Bits (Bits(xor))
 import GHC.Base (failIO)
--- * Servant API
+
 
 type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> PostNoContent
 
@@ -37,9 +49,6 @@ type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> Post
 -- | The HTTP backend configuration specifies how locations are mapped to
 -- network hosts and ports.
 
-newtype HttpConfig = HttpConfig
-  { locToUrl :: HashMap LocTm BaseUrl
-  }
 
 type Host = String
 type Port = Int
@@ -57,11 +66,11 @@ mkHttpConfig = HttpConfig . HashMap.fromList . fmap (fmap f)
       , baseUrlPath = ""
       }
 
-locs :: HttpConfig -> [LocTm]
-locs = HashMap.keys . locToUrl
+--locs :: HttpConfig -> [LocTm]
+--locs = HashMap.keys . locToUrl
 
-uniquePairs ::Eq a => [a] -> [(a, a)]
-uniquePairs xs = [(x, y) | x <- xs, y <- xs, x /= y]
+--uniquePairs ::Eq a => [a] -> [(a, a)]
+--uniquePairs xs = [(x, y) | x <- xs, y <- xs, x /= y]
 
 type ThdId = HashMap (LocTm,LocTm) ThreadId
 writeThdId :: LocTm -> LocTm -> ThreadId ->ThdId -> IO ThdId
@@ -79,19 +88,7 @@ mkThdId cfg = foldM f HashMap.empty (uniquePairs (locs cfg))
       return ret
 
 
-type ChanMap = HashMap (LocTm,LocTm) (TChan String)
-writeChanMap :: LocTm -> LocTm -> TChan String -> ChanMap -> IO ChanMap
-writeChanMap s r tid hm = return $ HashMap.insert (s,r) tid hm
 
-mkChanMap :: HttpConfig -> STM ChanMap
-mkChanMap cfg = foldM f HashMap.empty (uniquePairs (locs cfg))
-  where
-    f :: ChanMap -> (LocTm,LocTm)
-      -> STM ChanMap
-    f hm (s,r) = do
-      nc <- newTChan
-      let ret = HashMap.insert (s,r) nc hm
-      return ret
 
 type RecvChans = HashMap LocTm (TChan String)
 
@@ -141,12 +138,12 @@ messageWriter channel name = do
 --  readTChan channel
     
 
-runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
-runNetworkHttp cfg self prog = do
+runNetworkHttp :: (MonadIO m) => HttpConfig -> IO ChanMap -> LocTm -> Network m a -> m a
+runNetworkHttp cfg chanmapS self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings
   chans <- liftSTM $ mkRecvChans cfg
   thdids <- liftIO $ mkThdId cfg
-  chanmaps <- liftSTM $ mkChanMap cfg
+  chanmaps <- liftIO chanmapS
   recvT <- liftIO $ forkIO (recvThread cfg chans)
   result <- runNetworkMain mgr chans chanmaps thdids prog 
   liftIO $ threadDelay 1000000 -- wait until all outstanding requests to be completed
@@ -154,28 +151,39 @@ runNetworkHttp cfg self prog = do
   return result
   where
     runNetworkMain :: (MonadIO m) => Manager -> RecvChans -> ChanMap -> ThdId -> Network m a -> m a
-    runNetworkMain mgr chans chanmap thdids = interpFreer handler' where
+    runNetworkMain mgr chans chanmaps thdids = interpFreer handler' where
       handler' :: (MonadIO m) => NetworkSig m a -> m a
       handler' (Run m)    = m
       handler' (Send a l) = liftIO $ do
        newchan <- atomically newTChan
+       newmvar <- newEmptyMVar
+       putMVar newmvar (show a)
        recvT <- forkIO (atomically $ messageWriter newchan (show a))
-       thdids <- liftIO $ writeThdId self l recvT thdids
-       chanmap <- liftIO $ writeChanMap self l newchan chanmap
-       putStrLn $ "here-------------->" ++ show (thdids ! (self,l)) ++" "
-       ret <- atomically $ readTChan (chanmap ! (l,self)) -- how about doing forkIO messagereader also
-       putStrLn $ "ret ==="++ ret
+       --thdids <- liftIO $ writeThdId self l recvT thdids
+       --wrt <- atomically $ writeTChan newchan (show a)
+       chanmap <- liftIO $ writeChanMap self l newchan chanmaps
+       --putStrLn $ "here-------------->" ++ show (chanmap ! (l,self)) ++" "
+       --ret1 <- atomically $ readTChan (chanmap ! (self,l)) 
+       --ret2 <- atomically $ readTChan (chanmap ! (l,self)) 
+       --putStrLn $ "fetch1-------------->" ++ ret1
+       putStrLn $ "fetch2-------------->" 
        --res <- runClientM (send' self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
        --case res of
        -- Left err ->putStrLn "(did not work)"
        -- Right _  -> return ()
       handler' (Recv l)   = liftIO $ do 
-        putStrLn $ "fetch"
+        putStrLn "fetch"
         --recvT <- forkIO (recvThread cfg chans)
-        ret <- liftSTM $ read <$> readTChan (chanmap ! (l,self)) 
-        putStrLn $ "fetch-------------->" ++ show (thdids ! (l,self))  ++" "
+        let newchan = chanmaps ! (self,l)
+        ret1 <- atomically $ readTChan newchan
+        ret2 <- atomically $ readTChan (chanmaps ! (l,self))
+        putStrLn $ "fetch1-------------->" ++ ret1
+        putStrLn $ "fetch2-------------->" ++ ret2
+        --mapM_ (print.fst) (HashMap.toList chanmap)
+        print self
+        return (read ret1)
         --liftIO $ killThread (thdids ! (l,self))
-        return ret 
+        --return ret 
       handler' (PairRecv l1 l2)  = liftSTM $ read <$> readEither (chans ! l1) (chans ! l2) 
       handler' (RecvCompare l1 l2)  = liftSTM $ read <$> readCompare (chans ! l1) (chans ! l2)
       handler' (MayRecv1 a l)   = liftSTM $ read <$> checkAndRead1 (show a) (chans ! l)

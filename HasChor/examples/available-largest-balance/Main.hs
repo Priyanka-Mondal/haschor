@@ -8,6 +8,7 @@ import Data.Proxy
 import Data.Time
 import System.Environment
 import Text.Read (Lexeme(String))
+import Control.Concurrent.STM
 
 client :: Proxy "client"
 client = Proxy
@@ -78,8 +79,8 @@ largestAvailableBalance = do
   b1 `locally` \_ -> do
       putStrLn "b1: I am done!"
 
-  b2 `locally` \_ -> do
-      putStrLn "b2: I am done!!!"
+  --b2 `locally` \_ -> do
+  --    putStrLn "b2: I am done!!!"
 
   return ()
   
@@ -87,16 +88,16 @@ main :: IO ()
 main = do
   [loc] <- getArgs
   case loc of
-    "client" -> runChoreography cfg largestAvailableBalance "client"
-    "b1" -> runChoreography cfg largestAvailableBalance "b1"
-    "b2" -> runChoreography cfg largestAvailableBalance "b2"
+    "client" -> runChoreography cfg chanmaps largestAvailableBalance "client"
+    "b1" -> runChoreography cfg chanmaps largestAvailableBalance "b1"
+   -- "b2" -> runChoreography cfg largestAvailableBalance "b2"
   return ()
   where
-    cfg = mkHttpConfig [ ("client",  ("localhost", 4243))
+    chanmaps = mkChanMaps cfg        
+    cfg = mkHttpConfig [ ("client",  ("localhost", 4253))
                         , ("b1", ("localhost", 4341))
-                        , ("b2", ("localhost", 4342))
+                        --, ("b2", ("localhost", 4342))
                        ]
-
 
 balanceOfBank1 :: String -> Int
 balanceOfBank1 "Alice" = 80
